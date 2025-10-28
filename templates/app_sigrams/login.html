@@ -1,0 +1,46 @@
+{% extends 'app_sigrams/base.html' %}
+
+{% block title %}Iniciar Sesión - SIGRAMS{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow border-catamarca">
+            <div class="card-header bg-catamarca text-white text-center">
+                <h4 class="mb-0">🔐 Iniciar Sesión</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Usuario</label>
+                        <input type="text" class="form-control" id="username" name="username" 
+                               placeholder="Ingrese su usuario" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="password" name="password" 
+                               placeholder="Ingrese su contraseña" required>
+                    </div>
+                    <button type="submit" class="btn btn-catamarca w-100 py-2">
+                        Ingresar al Sistema
+                    </button>
+                </form>
+                
+                <div class="text-center mt-3">
+                    <p class="mb-0">¿No tenés cuenta? 
+                        <a href="{% url 'register' %}" class="text-catamarca">Registrate aquí</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-3">
+            <small class="text-muted">
+                Sistema de Gestión de Marcas y Señales<br>
+                Ministerio de Producción - Catamarca
+            </small>
+        </div>
+    </div>
+</div>
+{% endblock %}

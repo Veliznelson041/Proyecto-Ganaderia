@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema de Marcas y Señales - Catamarca{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .bg-catamarca {
+            background-color: #0A2E5A !important;
+        }
+        .btn-catamarca {
+            background-color: #0A2E5A;
+            color: white;
+        }
+        .btn-catamarca:hover {
+            background-color: #1E6BA6;
+            color: white;
+        }
+        .text-catamarca {
+            color: #0A2E5A;
+        }
+        .border-catamarca {
+            border-color: #0A2E5A !important;
+        }
+        .sidebar {
+            background-color: #f8f9fa;
+            min-height: calc(100vh - 56px);
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Barra de navegación -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-catamarca">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'home' %}">
+                🐄 SIGRAMS - Ganadería Catamarca
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                {% if user.is_authenticated %}
+                    <span class="navbar-text me-3">
+                        Hola, <strong>{{ user.username }}</strong>
+                    </span>
+                    <a class="btn btn-outline-light btn-sm" href="{% url 'logout' %}">
+                        Cerrar sesión
+                    </a>
+                {% else %}
+                    <a class="btn btn-outline-light btn-sm me-2" href="{% url 'login' %}">
+                        Iniciar sesión
+                    </a>
+                    <a class="btn btn-light btn-sm" href="{% url 'register' %}">
+                        Registrarse
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <div class="container-fluid">
+    <div class="row">
+        {% if user.is_authenticated %}
+        <!-- Sidebar para usuarios autenticados -->
+        <div class="col-md-3 col-lg-2 sidebar p-3">
+            <nav class="nav flex-column">
+                <h6 class="text-catamarca mb-3">MENÚ PRINCIPAL</h6>
+                
+                <a class="nav-link text-dark mb-2" href="{% url 'home' %}">
+                    📊 Dashboard
+                </a>
+                
+                <div class="dropdown-divider"></div>
+                
+                <small class="text-muted mb-2">GESTIÓN DE REGISTROS</small>
+                <a class="nav-link text-dark mb-2" href="#">
+                    🏷️ Marcas y Señales
+                </a>
+                <a class="nav-link text-dark mb-2" href="#">
+                    👨‍🌾 Productores
+                </a>
+                <a class="nav-link text-dark mb-2" href="#">
+                    📋 Solicitudes
+                </a>
+                
+                {% if user.is_staff %}
+                <div class="dropdown-divider"></div>
+                <small class="text-muted mb-2">ADMINISTRACIÓN</small>
+                <a class="nav-link text-dark mb-2" href="/admin/" target="_blank">
+                    ⚙️ Panel Admin
+                </a>
+                {% endif %}
+            </nav>
+        </div>
+        <div class="col-md-9 col-lg-10 p-4">
+        {% else %}
+        <div class="col-12 p-4">
+        {% endif %}
+            {% block content %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+
+
+    <!-- Mensajes -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        {% for message in messages %}
+        <div class="toast show" role="alert">
+            <div class="toast-header {% if message.tags %}bg-{{ message.tags }}{% endif %} text-white">
+                <strong class="me-auto">
+                    {% if message.tags == 'success' %}✅
+                    {% elif message.tags == 'error' %}❌
+                    {% elif message.tags == 'warning' %}⚠️
+                    {% else %}ℹ️{% endif %}
+                    {{ message.tags|title }}
+                </strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                {{ message }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <footer class="bg-dark text-white text-center py-3 mt-5">
+        <p class="mb-0">Sistema de Gestión de Marcas y Señales © 2025 - Ministerio de Producción de Catamarca</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

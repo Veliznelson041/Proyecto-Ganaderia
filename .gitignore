@@ -1,0 +1,34 @@
+# Entorno virtual
+venv/
+.env
+.env.example
+
+# Archivos de base de datos local
+db.sqlite3
+
+# Archivos temporales
+__pycache__/
+*.py[cod]
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+
+# Archivos de configuración de VSCode
+.vscode/
+
+# Archivos de migraciones compilados
+*/migrations/__pycache__/
+*/migrations/*.pyc
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de compilación
+*.egg-info/
+build/
+dist/
