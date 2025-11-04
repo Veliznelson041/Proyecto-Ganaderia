@@ -1,16 +1,18 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Q
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
-from app_registros.models import UserProfile
+from app_registros.models import UserProfile, Productor, MarcaSenal, Solicitud, Campo, TipoSenal
+from app_registros.forms import ProductorForm, MarcaSenalForm, SolicitudForm
 
 # Create your views here.
 
 @login_required
 def home(request):
     """Vista principal del dashboard"""
-    from app_registros.models import Productor, MarcaSenal, Solicitud
+    from app_registros.models import Productor, MarcaSenal, Solicitud  # Asegúrate que sea MarcaSenal
     from django.utils import timezone
     
     # Estadísticas para el dashboard
@@ -124,3 +126,237 @@ def register_view(request):
         return redirect('login')
 
     return render(request, 'app_sigrams/register.html')
+
+
+
+
+# ... (tus vistas existentes de login, logout, register, home)
+
+# ============================================================================
+# VISTAS PARA PRODUCTORES
+# ============================================================================
+
+@login_required
+def lista_productores(request):
+    """Lista todos los productores con filtros"""
+    productores = Productor.objects.all()
+    
+    # Filtros
+    query = request.GET.get('q', '')
+    estado = request.GET.get('estado', '')
+    distrito = request.GET.get('distrito', '')
+    
+    if query:
+        productores = productores.filter(
+            Q(nombre__icontains=query) | 
+            Q(apellido__icontains=query) |
+            Q(dni__icontains=query)
+        )
+    
+    if estado:
+        productores = productores.filter(estado=estado)
+    
+    if distrito:
+        productores = productores.filter(distrito__icontains=distrito)
+    
+    context = {
+        'productores': productores,
+        'query': query,
+        'estado_filtro': estado,
+        'distrito_filtro': distrito,
+    }
+    return render(request, 'app_sigrams/productores/lista.html', context)
+
+@login_required
+def detalle_productor(request, pk):
+    """Detalle de un productor específico"""
+    productor = get_object_or_404(Productor, pk=pk)
+    marcas = productor.marcas_senales.all()
+    solicitudes = productor.solicitudes.all()
+    
+    context = {
+        'productor': productor,
+        'marcas': marcas,
+        'solicitudes': solicitudes,
+    }
+    return render(request, 'app_sigrams/productores/detalle.html', context)
+
+@login_required
+def nuevo_productor(request):
+    """Crear nuevo productor"""
+    if request.method == 'POST':
+        form = ProductorForm(request.POST)
+        if form.is_valid():
+            productor = form.save()
+            messages.success(request, f'Productor {productor.nombre_completo} creado exitosamente.')
+            return redirect('detalle_productor', pk=productor.pk)
+    else:
+        form = ProductorForm()
+    
+    context = {'form': form, 'titulo': 'Nuevo Productor'}
+    return render(request, 'app_sigrams/productores/form.html', context)
+
+@login_required
+def editar_productor(request, pk):
+    """Editar productor existente"""
+    productor = get_object_or_404(Productor, pk=pk)
+    
+    if request.method == 'POST':
+        form = ProductorForm(request.POST, instance=productor)
+        if form.is_valid():
+            productor = form.save()
+            messages.success(request, f'Productor {productor.nombre_completo} actualizado exitosamente.')
+            return redirect('detalle_productor', pk=productor.pk)
+    else:
+        form = ProductorForm(instance=productor)
+    
+    context = {'form': form, 'titulo': 'Editar Productor', 'productor': productor}
+    return render(request, 'app_sigrams/productores/form.html', context)
+
+@login_required
+def eliminar_productor(request, pk):
+    """Eliminar productor"""
+    productor = get_object_or_404(Productor, pk=pk)
+    
+    if request.method == 'POST':
+        nombre = productor.nombre_completo
+        productor.delete()
+        messages.success(request, f'Productor {nombre} eliminado exitosamente.')
+        return redirect('lista_productores')
+    
+    context = {'productor': productor}
+    return render(request, 'app_sigrams/productores/confirmar_eliminar.html', context)
+
+# ============================================================================
+# VISTAS PARA MARCAS Y SEÑALES
+# ============================================================================
+
+@login_required
+def lista_marcas(request):
+    """Lista todas las marcas y señales"""
+    marcas = MarcaSenal.objects.all()
+    
+    # Filtros
+    query = request.GET.get('q', '')
+    estado = request.GET.get('estado', '')
+    tipo_tramite = request.GET.get('tipo_tramite', '')
+    
+    if query:
+        marcas = marcas.filter(
+            Q(productor__nombre__icontains=query) | 
+            Q(productor__apellido__icontains=query) |
+            Q(numero_orden__icontains=query)
+        )
+    
+    if estado:
+        marcas = marcas.filter(estado=estado)
+    
+    if tipo_tramite:
+        marcas = marcas.filter(tipo_tramite=tipo_tramite)
+    
+    context = {
+        'marcas': marcas,
+        'query': query,
+        'estado_filtro': estado,
+        'tipo_tramite_filtro': tipo_tramite,
+    }
+    return render(request, 'app_sigrams/marcas/lista.html', context)
+
+@login_required
+def detalle_marca(request, pk):
+    """Detalle de una marca específica"""
+    marca = get_object_or_404(MarcaSenal, pk=pk)
+    
+    context = {
+        'marca': marca,
+    }
+    return render(request, 'app_sigrams/marcas/detalle.html', context)
+
+@login_required
+def nueva_marca(request):
+    """Crear nueva marca y señal"""
+    if request.method == 'POST':
+        form = MarcaSenalForm(request.POST, request.FILES)
+        if form.is_valid():
+            marca = form.save()
+            messages.success(request, f'Marca #{marca.numero_orden} creada exitosamente.')
+            return redirect('detalle_marca', pk=marca.pk)
+    else:
+        form = MarcaSenalForm()
+    
+    context = {'form': form, 'titulo': 'Nueva Marca y Señal'}
+    return render(request, 'app_sigrams/marcas/form.html', context)
+
+@login_required
+def editar_marca(request, pk):
+    """Editar marca existente"""
+    marca = get_object_or_404(MarcaSenal, pk=pk)
+    
+    if request.method == 'POST':
+        form = MarcaSenalForm(request.POST, request.FILES, instance=marca)
+        if form.is_valid():
+            marca = form.save()
+            messages.success(request, f'Marca #{marca.numero_orden} actualizada exitosamente.')
+            return redirect('detalle_marca', pk=marca.pk)
+    else:
+        form = MarcaSenalForm(instance=marca)
+    
+    context = {'form': form, 'titulo': 'Editar Marca y Señal', 'marca': marca}
+    return render(request, 'app_sigrams/marcas/form.html', context)
+
+# ============================================================================
+# VISTAS PARA SOLICITUDES
+# ============================================================================
+
+@login_required
+def lista_solicitudes(request):
+    """Lista todas las solicitudes"""
+    solicitudes = Solicitud.objects.all()
+    
+    # Filtros
+    estado = request.GET.get('estado', '')
+    tipo_tramite = request.GET.get('tipo_tramite', '')
+    
+    if estado:
+        solicitudes = solicitudes.filter(estado=estado)
+    
+    if tipo_tramite:
+        solicitudes = solicitudes.filter(tipo_tramite=tipo_tramite)
+    
+    context = {
+        'solicitudes': solicitudes,
+        'estado_filtro': estado,
+        'tipo_tramite_filtro': tipo_tramite,
+    }
+    return render(request, 'app_sigrams/solicitudes/lista.html', context)
+
+@login_required
+def nueva_solicitud(request):
+    """Crear nueva solicitud"""
+    if request.method == 'POST':
+        form = SolicitudForm(request.POST, request.FILES)
+        if form.is_valid():
+            solicitud = form.save()
+            messages.success(request, f'Solicitud #{solicitud.id} creada exitosamente.')
+            return redirect('lista_solicitudes')
+    else:
+        form = SolicitudForm()
+    
+    context = {'form': form, 'titulo': 'Nueva Solicitud'}
+    return render(request, 'app_sigrams/solicitudes/form.html', context)
+
+@login_required
+def cambiar_estado_solicitud(request, pk, estado):
+    """Cambiar estado de una solicitud"""
+    solicitud = get_object_or_404(Solicitud, pk=pk)
+    
+    if estado in ['APROBADO', 'RECHAZADO']:
+        solicitud.estado = estado
+        solicitud.save()
+        
+        if estado == 'APROBADO':
+            messages.success(request, f'Solicitud #{solicitud.id} aprobada.')
+        else:
+            messages.warning(request, f'Solicitud #{solicitud.id} rechazada.')
+    
+    return redirect('lista_solicitudes')

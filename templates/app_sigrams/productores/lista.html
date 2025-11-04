@@ -1,0 +1,96 @@
+{% extends 'app_sigrams/base.html' %}
+
+{% block title %}Productores - SIGRAMS{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2 text-catamarca">Gestión de Productores</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'nuevo_productor' %}" class="btn btn-catamarca">
+            👨‍🌾 Nuevo Productor
+        </a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" name="q" class="form-control" placeholder="Buscar por nombre, apellido o DNI..." value="{{ query }}">
+            </div>
+            <div class="col-md-3">
+                <select name="estado" class="form-control">
+                    <option value="">Todos los estados</option>
+                    <option value="PENDIENTE" {% if estado_filtro == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+                    <option value="REGISTRADO" {% if estado_filtro == 'REGISTRADO' %}selected{% endif %}>Registrado</option>
+                    <option value="RENOVACION" {% if estado_filtro == 'RENOVACION' %}selected{% endif %}>Renovación</option>
+                    <option value="TRANSFERENCIA" {% if estado_filtro == 'TRANSFERENCIA' %}selected{% endif %}>Transferencia</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="text" name="distrito" class="form-control" placeholder="Filtrar por distrito" value="{{ distrito_filtro }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-catamarca w-100">Filtrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de productores -->
+<div class="card">
+    <div class="card-body">
+        {% if productores %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>DNI/CUIT</th>
+                        <th>Localidad</th>
+                        <th>Distrito</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for productor in productores %}
+                    <tr>
+                        <td>
+                            <strong>{{ productor.nombre_completo }}</strong>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ productor.dni }}</small>
+                            {% if productor.cuit %}<br><small>{{ productor.cuit }}</small>{% endif %}
+                        </td>
+                        <td>{{ productor.localidad }}</td>
+                        <td>{{ productor.distrito }}</td>
+                        <td>
+                            <span class="badge {% if productor.estado == 'REGISTRADO' %}bg-success
+                                            {% elif productor.estado == 'PENDIENTE' %}bg-warning
+                                            {% else %}bg-info{% endif %}">
+                                {{ productor.get_estado_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'detalle_productor' productor.pk %}" class="btn btn-outline-primary">Ver</a>
+                                <a href="{% url 'editar_productor' productor.pk %}" class="btn btn-outline-secondary">Editar</a>
+                                <a href="{% url 'eliminar_productor' productor.pk %}" class="btn btn-outline-danger">Eliminar</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <p class="text-muted">No se encontraron productores.</p>
+            <a href="{% url 'nuevo_productor' %}" class="btn btn-catamarca">Agregar primer productor</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

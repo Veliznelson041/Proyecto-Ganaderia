@@ -76,15 +76,15 @@
                 <div class="dropdown-divider"></div>
                 
                 <small class="text-muted mb-2">GESTIÓN DE REGISTROS</small>
-                <a class="nav-link text-dark mb-2" href="#">
-                    🏷️ Marcas y Señales
-                </a>
-                <a class="nav-link text-dark mb-2" href="#">
-                    👨‍🌾 Productores
-                </a>
-                <a class="nav-link text-dark mb-2" href="#">
-                    📋 Solicitudes
-                </a>
+                    <a class="nav-link text-dark mb-2" href="{% url 'lista_marcas' %}">
+                        🏷️ Marcas y Señales
+                    </a>
+                    <a class="nav-link text-dark mb-2" href="{% url 'lista_productores' %}">
+                        👨‍🌾 Productores
+                    </a>
+                    <a class="nav-link text-dark mb-2" href="{% url 'lista_solicitudes' %}">
+                        📋 Solicitudes
+                    </a>
                 
                 {% if user.is_staff %}
                 <div class="dropdown-divider"></div>

@@ -78,7 +78,7 @@ class TipoSenal(models.Model):
 # ----------------------------------------
 # MARCA Y SEÑAL (Modelo principal para registros)
 # ----------------------------------------
-class MarcaSenal(models.Model):
+class MarcaSenal(models.Model):  # Sin ñ
     TIPO_TRAMITE_CHOICES = [
         ('NUEVA', 'Marca nueva'),
         ('RENOVACION', 'Renovación'),
