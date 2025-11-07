@@ -14,27 +14,99 @@
 
 <div class="card">
     <div class="card-body">
-        <form method="post">
+        <form method="post" id="productorForm">
             {% csrf_token %}
             
+            <!-- Sección del Mapa - ARRIBA DEL FORMULARIO -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-catamarca mb-0">
+                            🗺️ Mapa de Georreferenciación
+                            <small class="text-muted">(Haga clic en el mapa para seleccionar ubicación automáticamente)</small>
+                        </h5>
+                        <div class="btn-group">
+                            <button type="button" id="btn-borrar-seleccion" class="btn btn-warning btn-sm">
+                                🗑️ Borrar Selección
+                            </button>
+                            <button type="button" id="btn-geolocalizar" class="btn btn-info btn-sm">
+                                📍 Mi Ubicación
+                            </button>
+                            <button type="button" id="btn-actualizar-mapa" class="btn btn-primary btn-sm">
+                                🔄 Actualizar Mapa
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="map-container mb-3">
+                        <!-- Panel de coordenadas y controles -->
+                        <div class="map-controls">
+                            <div class="coordinates-panel">
+                                <strong>Coordenadas:</strong>
+                                <span id="coordinates-display">No seleccionadas</span>
+                            </div>
+                            <div class="area-controls">
+                                <label for="area-input" class="form-label">Área (hectáreas):</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number" id="area-input" class="form-control" step="0.01" min="0" placeholder="0.00">
+                                    <button type="button" id="btn-aplicar-area" class="btn btn-catamarca">
+                                        📏 Aplicar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- El mapa -->
+                        <div id="map"></div>
+                    </div>
+
+                    <!-- Leyenda -->
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #3388ff;"></div>
+                            <span>Productores Registrados</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #ff0000;"></div>
+                            <span>Selección Actual</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #00ff00;"></div>
+                            <span>Su Ubicación</span>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <small>
+                            💡 <strong>Instrucciones:</strong> 
+                            1) Haga clic en el mapa para seleccionar ubicación | 
+                            2) Los campos de dirección se llenarán automáticamente | 
+                            3) Ajuste el área en hectáreas si es necesario |
+                            4) Complete los datos personales y guarde
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario de datos -->
             <div class="row">
                 <div class="col-md-6">
                     <h5 class="text-catamarca mb-3">Datos Personales</h5>
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre</label>
+                            <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre *</label>
                             {{ form.nombre }}
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="{{ form.apellido.id_for_label }}" class="form-label">Apellido</label>
+                            <label for="{{ form.apellido.id_for_label }}" class="form-label">Apellido *</label>
                             {{ form.apellido }}
                         </div>
                     </div>
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="{{ form.dni.id_for_label }}" class="form-label">DNI</label>
+                            <label for="{{ form.dni.id_for_label }}" class="form-label">DNI *</label>
                             {{ form.dni }}
                         </div>
                         <div class="col-md-6 mb-3">
@@ -42,26 +114,54 @@
                             {{ form.cuit }}
                         </div>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.domicilio.id_for_label }}" class="form-label">Domicilio/Campo</label>
-                        {{ form.domicilio }}
-                    </div>
                 </div>
                 
                 <div class="col-md-6">
-                    <h5 class="text-catamarca mb-3">Ubicación y Contacto</h5>
+                    <h5 class="text-catamarca mb-3">Ubicación Automática</h5>
+                    <small class="text-muted d-block mb-3">Estos campos se completan automáticamente al seleccionar en el mapa</small>
                     
+                    <div class="mb-3">
+                        <label for="{{ form.calle.id_for_label }}" class="form-label">Calle</label>
+                        {{ form.calle }}
+                    </div>
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="{{ form.distrito.id_for_label }}" class="form-label">Distrito</label>
-                            {{ form.distrito }}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.localidad.id_for_label }}" class="form-label">Localidad/Depto.</label>
+                            <label for="{{ form.localidad.id_for_label }}" class="form-label">Localidad</label>
                             {{ form.localidad }}
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.municipio.id_for_label }}" class="form-label">Municipio</label>
+                            {{ form.municipio }}
+                        </div>
                     </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.departamento.id_for_label }}" class="form-label">Departamento</label>
+                            {{ form.departamento }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.provincia.id_for_label }}" class="form-label">Provincia</label>
+                            {{ form.provincia }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.campo.id_for_label }}" class="form-label">Nombre del Campo</label>
+                        {{ form.campo }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.area_hectareas.id_for_label }}" class="form-label">Área (hectáreas)</label>
+                        {{ form.area_hectareas }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <h5 class="text-catamarca mb-3">Contacto</h5>
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -73,34 +173,31 @@
                             {{ form.email }}
                         </div>
                     </div>
+                </div>
+
+                <div class="col-md-6">
+                    <h5 class="text-catamarca mb-3">Información Adicional</h5>
                     
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.latitud.id_for_label }}" class="form-label">Latitud</label>
-                            {{ form.latitud }}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.longitud.id_for_label }}" class="form-label">Longitud</label>
-                            {{ form.longitud }}
-                        </div>
+                    <div class="mb-3">
+                        <label for="{{ form.estado.id_for_label }}" class="form-label">Estado *</label>
+                        {{ form.estado }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.observaciones.id_for_label }}" class="form-label">Observaciones</label>
+                        {{ form.observaciones }}
                     </div>
                 </div>
             </div>
             
-            <div class="row mt-3">
-                <div class="col-md-6 mb-3">
-                    <label for="{{ form.estado.id_for_label }}" class="form-label">Estado</label>
-                    {{ form.estado }}
-                </div>
+            <!-- Campos de coordenadas (ocultos) -->
+            <div style="display: none;">
+                {{ form.latitud }}
+                {{ form.longitud }}
             </div>
             
-            <div class="mb-3">
-                <label for="{{ form.observaciones.id_for_label }}" class="form-label">Observaciones</label>
-                {{ form.observaciones }}
-            </div>
-            
-            <div class="mt-4">
-                <button type="submit" class="btn btn-catamarca me-2">
+            <div class="mt-4 border-top pt-3">
+                <button type="submit" class="btn btn-catamarca btn-lg me-2">
                     💾 Guardar Productor
                 </button>
                 <a href="{% url 'lista_productores' %}" class="btn btn-outline-secondary">
@@ -110,4 +207,407 @@
         </form>
     </div>
 </div>
+
+<style>
+.map-container {
+    position: relative;
+    border: 2px solid #0A2E5A;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#map {
+    height: 500px;
+    width: 100%;
+}
+
+.map-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    background: white;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    min-width: 250px;
+}
+
+.coordinates-panel {
+    margin-bottom: 10px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.area-controls {
+    margin-bottom: 10px;
+}
+
+.area-controls .form-label {
+    font-size: 12px;
+    margin-bottom: 2px;
+    font-weight: bold;
+}
+
+.legend {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+    font-size: 12px;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin-right: 8px;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* Estilos para los campos de solo lectura */
+.form-control[readonly] {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+    color: #495057;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+// Configuración
+const DEFAULT_LAT = -28.4696;
+const DEFAULT_LNG = -65.7852;
+const DEFAULT_ZOOM = 10;
+
+// Variables globales
+let map;
+let marker;
+let circle;
+let geocoder;
+let existingProducersLayer;
+let currentLocation = null;
+let userLocationMarker = null;
+
+// Iconos personalizados
+const redIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
+const blueIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
+const greenIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
+// Inicializar el mapa
+function initMap() {
+    // Crear mapa
+    map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LNG], DEFAULT_ZOOM);
+    
+    // Capa base
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    
+    // Geocoder integrado (sin buscador adicional)
+    geocoder = L.Control.geocoder({
+        defaultMarkGeocode: false,
+        position: 'topleft',
+        placeholder: 'Buscar dirección...',
+        errorMessage: 'Dirección no encontrada.'
+    }).on('markgeocode', function(e) {
+        const center = e.geocode.center;
+        map.setView(center, 16);
+        handleLocationSelect(center.lat, center.lng);
+    }).addTo(map);
+    
+    // Evento de clic en el mapa
+    map.on('click', function(e) {
+        handleLocationSelect(e.latlng.lat, e.latlng.lng);
+    });
+    
+    // Cargar productores existentes
+    loadExistingProducers();
+    
+    // Si estamos editando, centrar en la ubicación existente
+    const initialLat = document.getElementById('{{ form.latitud.id_for_label }}').value;
+    const initialLng = document.getElementById('{{ form.longitud.id_for_label }}').value;
+    const initialArea = document.getElementById('{{ form.area_hectareas.id_for_label }}').value;
+    
+    if (initialLat && initialLng) {
+        currentLocation = {
+            lat: parseFloat(initialLat),
+            lng: parseFloat(initialLng),
+            area: parseFloat(initialArea) || 0
+        };
+        updateMapDisplay();
+        map.setView([currentLocation.lat, currentLocation.lng], 14);
+    }
+}
+
+// Manejar selección de ubicación
+function handleLocationSelect(lat, lng) {
+    currentLocation = { 
+        lat, 
+        lng, 
+        area: parseFloat(document.getElementById('area-input').value) || 0 
+    };
+    updateMapDisplay();
+    reverseGeocode(lat, lng);
+}
+
+// Actualizar visualización en el mapa
+function updateMapDisplay() {
+    if (!currentLocation) return;
+    
+    // Limpiar marcadores anteriores
+    if (marker) map.removeLayer(marker);
+    if (circle) map.removeLayer(circle);
+    
+    // Agregar marcador actual
+    marker = L.marker([currentLocation.lat, currentLocation.lng], { icon: redIcon })
+        .addTo(map)
+        .bindPopup('📍 <b>Ubicación seleccionada</b><br>' + 
+                  `Coordenadas: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lng.toFixed(6)}<br>` +
+                  (currentLocation.area ? `Área: ${currentLocation.area} ha` : 'Área no especificada'))
+        .openPopup();
+    
+    // Si hay área definida, mostrar círculo
+    if (currentLocation.area > 0) {
+        const radius = Math.sqrt(currentLocation.area * 10000) / Math.PI; // Convertir hectáreas a radio aproximado
+        circle = L.circle([currentLocation.lat, currentLocation.lng], {
+            color: 'red',
+            fillColor: '#f03',
+            fillOpacity: 0.2,
+            radius: radius
+        }).addTo(map);
+    }
+    
+    // Actualizar coordenadas en el panel
+    document.getElementById('coordinates-display').textContent = 
+        `${currentLocation.lat.toFixed(6)}, ${currentLocation.lng.toFixed(6)}`;
+    
+    // Actualizar campos ocultos del formulario
+    document.getElementById('{{ form.latitud.id_for_label }}').value = currentLocation.lat.toFixed(8);
+    document.getElementById('{{ form.longitud.id_for_label }}').value = currentLocation.lng.toFixed(8);
+    document.getElementById('{{ form.area_hectareas.id_for_label }}').value = currentLocation.area;
+    document.getElementById('area-input').value = currentLocation.area;
+}
+
+// Reverse geocoding CORREGIDO
+function reverseGeocode(lat, lng) {
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=es`)
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.address) {
+                const address = data.address;
+                
+                console.log('Datos de dirección:', address); // Para debugging
+                
+                // CORRECCIÓN: Mapeo correcto de campos
+                let calle = '';
+                if (address.road) {
+                    calle = address.road;
+                    if (address.house_number) {
+                        calle += ' ' + address.house_number;
+                    }
+                }
+                
+                let localidad = address.village || address.town || address.city || '';
+                let municipio = address.municipality || address.county || '';
+                let departamento = address.state_district || address.region || '';
+                let provincia = address.state || '';
+                
+                // Para Argentina, ajustamos los nombres
+                if (provincia === 'Catamarca Province') provincia = 'Catamarca';
+                if (departamento.includes('Department')) departamento = departamento.replace(' Department', '');
+                
+                // Llenar campos del formulario
+                document.getElementById('{{ form.calle.id_for_label }}').value = calle;
+                document.getElementById('{{ form.localidad.id_for_label }}').value = localidad;
+                document.getElementById('{{ form.municipio.id_for_label }}').value = municipio;
+                document.getElementById('{{ form.departamento.id_for_label }}').value = departamento;
+                document.getElementById('{{ form.provincia.id_for_label }}').value = provincia;
+                
+                // Sugerir nombre del campo basado en la localidad
+                if (localidad) {
+                    document.getElementById('{{ form.campo.id_for_label }}').value = `Campo ${localidad}`;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error en reverse geocoding:', error);
+        });
+}
+
+// Cargar productores existentes
+function loadExistingProducers() {
+    existingProducersLayer = L.layerGroup().addTo(map);
+    
+    // Hacer petición para obtener productores existentes
+    fetch('{% url "api_productores_geojson" %}')
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.features) {
+                data.features.forEach(feature => {
+                    const coords = feature.geometry.coordinates;
+                    const props = feature.properties;
+                    
+                    // Crear marcador para productor existente
+                    const existingMarker = L.marker([coords[1], coords[0]], { icon: blueIcon })
+                        .addTo(existingProducersLayer)
+                        .bindPopup(`
+                            <b>${props.nombre}</b><br>
+                            DNI: ${props.dni}<br>
+                            Estado: ${props.estado}<br>
+                            Área: ${props.area_hectareas || 0} ha<br>
+                            <a href="${props.detalle_url}" target="_blank">Ver detalles</a>
+                        `);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando productores existentes:', error);
+        });
+}
+
+// Geolocalización
+function getCurrentLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                
+                // Limpiar marcador de ubicación anterior
+                if (userLocationMarker) {
+                    map.removeLayer(userLocationMarker);
+                }
+                
+                // Agregar marcador de ubicación actual
+                userLocationMarker = L.marker([lat, lng], { icon: greenIcon })
+                    .addTo(map)
+                    .bindPopup('📍 Su ubicación actual')
+                    .openPopup();
+                
+                map.setView([lat, lng], 14);
+                handleLocationSelect(lat, lng);
+            },
+            function(error) {
+                alert('No se pudo obtener la ubicación actual: ' + error.message);
+            }
+        );
+    } else {
+        alert('La geolocalización no es soportada por este navegador.');
+    }
+}
+
+// Aplicar área
+function applyArea() {
+    const area = parseFloat(document.getElementById('area-input').value) || 0;
+    if (currentLocation) {
+        currentLocation.area = area;
+        updateMapDisplay();
+    } else {
+        alert('Primero seleccione una ubicación en el mapa.');
+    }
+}
+
+// Borrar selección
+function clearSelection() {
+    currentLocation = null;
+    if (marker) map.removeLayer(marker);
+    if (circle) map.removeLayer(circle);
+    
+    document.getElementById('coordinates-display').textContent = 'No seleccionadas';
+    document.getElementById('{{ form.latitud.id_for_label }}').value = '';
+    document.getElementById('{{ form.longitud.id_for_label }}').value = '';
+    document.getElementById('{{ form.area_hectareas.id_for_label }}').value = '';
+    document.getElementById('area-input').value = '';
+    
+    // Limpiar campos de dirección
+    document.getElementById('{{ form.calle.id_for_label }}').value = '';
+    document.getElementById('{{ form.localidad.id_for_label }}').value = '';
+    document.getElementById('{{ form.municipio.id_for_label }}').value = '';
+    document.getElementById('{{ form.departamento.id_for_label }}').value = '';
+    document.getElementById('{{ form.provincia.id_for_label }}').value = '';
+    document.getElementById('{{ form.campo.id_for_label }}').value = '';
+}
+
+// Actualizar mapa (recargar productores)
+function updateMap() {
+    if (existingProducersLayer) {
+        map.removeLayer(existingProducersLayer);
+    }
+    loadExistingProducers();
+    alert('Mapa actualizado. Productores existentes recargados.');
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+    
+    document.getElementById('btn-geolocalizar').addEventListener('click', getCurrentLocation);
+    document.getElementById('btn-borrar-seleccion').addEventListener('click', clearSelection);
+    document.getElementById('btn-actualizar-mapa').addEventListener('click', updateMap);
+    document.getElementById('btn-aplicar-area').addEventListener('click', applyArea);
+    
+    // Permitir aplicar área con Enter
+    document.getElementById('area-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            applyArea();
+            e.preventDefault();
+        }
+    });
+});
+
+// Validación del formulario
+document.getElementById('productorForm').addEventListener('submit', function(e) {
+    if (!currentLocation) {
+        e.preventDefault();
+        alert('Por favor, seleccione una ubicación en el mapa antes de guardar.');
+        return false;
+    }
+    
+    const nombre = document.getElementById('{{ form.nombre.id_for_label }}').value;
+    const apellido = document.getElementById('{{ form.apellido.id_for_label }}').value;
+    const dni = document.getElementById('{{ form.dni.id_for_label }}').value;
+    
+    if (!nombre || !apellido || !dni) {
+        e.preventDefault();
+        alert('Por favor, complete los campos obligatorios: Nombre, Apellido y DNI.');
+        return false;
+    }
+});
+</script>
 {% endblock %}

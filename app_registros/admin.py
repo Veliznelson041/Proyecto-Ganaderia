@@ -3,8 +3,8 @@ from .models import Productor, Campo, TipoSenal, MarcaSenal, Solicitud, UserProf
 
 @admin.register(Productor)
 class ProductorAdmin(admin.ModelAdmin):
-    list_display = ['nombre_completo', 'dni', 'localidad', 'distrito', 'estado', 'fecha_registro']
-    list_filter = ['estado', 'distrito', 'localidad', 'fecha_registro']
+    list_display = ['nombre_completo', 'dni', 'localidad', 'estado', 'fecha_registro']
+    list_filter = ['estado', 'localidad', 'fecha_registro']
     search_fields = ['nombre', 'apellido', 'dni', 'cuit']
     readonly_fields = ['fecha_registro']
 

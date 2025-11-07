@@ -24,4 +24,8 @@ urlpatterns = [
     path('solicitudes/', views.lista_solicitudes, name='lista_solicitudes'),
     path('solicitudes/nueva/', views.nueva_solicitud, name='nueva_solicitud'),
     path('solicitudes/<int:pk>/<str:estado>/', views.cambiar_estado_solicitud, name='cambiar_estado_solicitud'),
+
+
+    path('api/productores/geojson/', views.api_productores_geojson, name='api_productores_geojson'),
+
 ]

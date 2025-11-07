@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from app_registros.models import UserProfile, Productor, MarcaSenal, Solicitud, Campo, TipoSenal
 from app_registros.forms import ProductorForm, MarcaSenalForm, SolicitudForm
+from django.http import JsonResponse
 
 # Create your views here.
 
@@ -360,3 +361,35 @@ def cambiar_estado_solicitud(request, pk, estado):
             messages.warning(request, f'Solicitud #{solicitud.id} rechazada.')
     
     return redirect('lista_solicitudes')
+
+
+
+@login_required
+def api_productores_geojson(request):
+    """API para obtener productores en formato GeoJSON"""
+    productores = Productor.objects.exclude(latitud__isnull=True).exclude(longitud__isnull=True)
+    
+    features = []
+    for productor in productores:
+        features.append({
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [float(productor.longitud), float(productor.latitud)]
+            },
+            "properties": {
+                "id": productor.id,
+                "nombre": productor.nombre_completo,
+                "dni": productor.dni,
+                "estado": productor.estado,
+                "area_hectareas": float(productor.area_hectareas) if productor.area_hectareas else 0,
+                "detalle_url": f"/productores/{productor.id}/"
+            }
+        })
+    
+    geojson = {
+        "type": "FeatureCollection",
+        "features": features
+    }
+    
+    return JsonResponse(geojson)

@@ -18,13 +18,23 @@ class Productor(models.Model):
     apellido = models.CharField(max_length=150)
     dni = models.CharField(max_length=15, unique=True, verbose_name="DNI")
     cuit = models.CharField(max_length=20, blank=True, null=True, verbose_name="CUIT")
-    domicilio = models.CharField(max_length=300)
-    distrito = models.CharField(max_length=150)
-    localidad = models.CharField(max_length=150)
+    
+    # Campos de dirección mejorados
+    calle = models.CharField(max_length=300, blank=True, null=True)  # Cambiado de domicilio a calle
+    campo = models.CharField(max_length=200, blank=True, null=True)
+    localidad = models.CharField(max_length=150, blank=True, null=True)
+    municipio = models.CharField(max_length=150, blank=True, null=True)
+    departamento = models.CharField(max_length=150, blank=True, null=True)
+    provincia = models.CharField(max_length=150, default="Catamarca")
+    
     telefono = models.CharField(max_length=80, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
+    
+    # Georreferenciación
     latitud = models.DecimalField(max_digits=10, decimal_places=8, blank=True, null=True)
     longitud = models.DecimalField(max_digits=11, decimal_places=8, blank=True, null=True)
+    area_hectareas = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
     fecha_registro = models.DateTimeField(auto_now_add=True)
     observaciones = models.TextField(blank=True)
@@ -40,6 +50,21 @@ class Productor(models.Model):
     @property
     def nombre_completo(self):
         return f"{self.apellido}, {self.nombre}"
+    
+    @property
+    def direccion_completa(self):
+        parts = []
+        if self.calle:
+            parts.append(self.calle)
+        if self.localidad:
+            parts.append(self.localidad)
+        if self.municipio:
+            parts.append(self.municipio)
+        if self.departamento:
+            parts.append(self.departamento)
+        if self.provincia:
+            parts.append(self.provincia)
+        return ", ".join(parts)
 
 # ----------------------------------------
 # CAMPO

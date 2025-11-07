@@ -5,25 +5,59 @@ class ProductorForm(forms.ModelForm):
     class Meta:
         model = Productor
         fields = [
-            'nombre', 'apellido', 'dni', 'cuit', 'domicilio', 
-            'distrito', 'localidad', 'telefono', 'email',
-            'latitud', 'longitud', 'estado', 'observaciones'
+            'nombre', 'apellido', 'dni', 'cuit', 'calle', 'campo',
+            'localidad', 'municipio', 'departamento', 'provincia',
+            'telefono', 'email', 'latitud', 'longitud', 'area_hectareas',
+            'estado', 'observaciones'
         ]
         widgets = {
-            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
-            'apellido': forms.TextInput(attrs={'class': 'form-control'}),
-            'dni': forms.TextInput(attrs={'class': 'form-control'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'required': 'required'}),
+            'apellido': forms.TextInput(attrs={'class': 'form-control', 'required': 'required'}),
+            'dni': forms.TextInput(attrs={'class': 'form-control', 'required': 'required'}),
             'cuit': forms.TextInput(attrs={'class': 'form-control'}),
-            'domicilio': forms.TextInput(attrs={'class': 'form-control'}),
-            'distrito': forms.TextInput(attrs={'class': 'form-control'}),
-            'localidad': forms.TextInput(attrs={'class': 'form-control'}),
+            'calle': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),  # Solo lectura
+            'campo': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),  # Solo lectura
+            'localidad': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),  # Solo lectura
+            'municipio': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),  # Solo lectura
+            'departamento': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),  # Solo lectura
+            'provincia': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),  # Solo lectura
             'telefono': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'latitud': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.00000001'}),
-            'longitud': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.00000001'}),
-            'estado': forms.Select(attrs={'class': 'form-control'}),
+            'latitud': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.00000001',
+                'required': 'required',
+                'readonly': 'readonly'
+            }),
+            'longitud': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.00000001',
+                'required': 'required',
+                'readonly': 'readonly'
+            }),
+            'area_hectareas': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0'
+            }),
+            'estado': forms.Select(attrs={'class': 'form-control', 'required': 'required'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Hacer los campos obligatorios
+        self.fields['nombre'].required = True
+        self.fields['apellido'].required = True
+        self.fields['dni'].required = True
+        """ self.fields['domicilio'].required = True """
+        """ self.fields['distrito'].required = True """
+        self.fields['localidad'].required = True
+        self.fields['latitud'].required = True
+        self.fields['longitud'].required = True
+        self.fields['estado'].required = True
+
+# ... (los demás forms permanecen igual)
 
 class CampoForm(forms.ModelForm):
     class Meta:
