@@ -1,5 +1,7 @@
 from django.urls import path
 from . import views
+from .views import ListaMarcasView, NuevaMarcaView, EditarMarcaView, DetalleMarcaView, cargar_campos
+
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -15,17 +17,17 @@ urlpatterns = [
     path('productores/<int:pk>/eliminar/', views.eliminar_productor, name='eliminar_productor'),
     
     # URLs para Marcas y Señales
-    path('marcas/', views.lista_marcas, name='lista_marcas'),
-    path('marcas/nueva/', views.nueva_marca, name='nueva_marca'),
-    path('marcas/<int:pk>/', views.detalle_marca, name='detalle_marca'),
-    path('marcas/<int:pk>/editar/', views.editar_marca, name='editar_marca'),
-    
+    path('marcas/', ListaMarcasView.as_view(), name='lista_marcas'),
+    path('marcas/nueva/', NuevaMarcaView.as_view(), name='nueva_marca'),
+    path('marcas/<int:pk>/editar/', EditarMarcaView.as_view(), name='editar_marca'),
+    path('marcas/<int:pk>/', DetalleMarcaView.as_view(), name='detalle_marca'),
+    path('cargar-campos/', cargar_campos, name='cargar_campos'),
+        
     # URLs para Solicitudes
     path('solicitudes/', views.lista_solicitudes, name='lista_solicitudes'),
     path('solicitudes/nueva/', views.nueva_solicitud, name='nueva_solicitud'),
     path('solicitudes/<int:pk>/<str:estado>/', views.cambiar_estado_solicitud, name='cambiar_estado_solicitud'),
-
-
+    
+    # API
     path('api/productores/geojson/', views.api_productores_geojson, name='api_productores_geojson'),
-
 ]

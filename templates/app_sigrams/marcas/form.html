@@ -1,0 +1,331 @@
+{% extends 'app_sigrams/base.html' %}
+
+{% block title %}{{ titulo }} - SIGRAMS{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2 text-catamarca">{{ titulo }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'lista_marcas' %}" class="btn btn-outline-secondary">
+            ← Volver a la lista
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data" id="marcaForm">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-catamarca mb-3">Datos Básicos</h5>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.productor.id_for_label }}" class="form-label">Productor *</label>
+                        {{ form.productor }}
+                        {% if form.productor.errors %}
+                            <div class="text-danger small">{{ form.productor.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.campo.id_for_label }}" class="form-label">Campo *</label>
+                        {{ form.campo }}
+                        {% if form.campo.errors %}
+                            <div class="text-danger small">{{ form.campo.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">Selecciona primero un productor para ver sus campos</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.tipo_tramite.id_for_label }}" class="form-label">Tipo de Trámite *</label>
+                            {{ form.tipo_tramite }}
+                            {% if form.tipo_tramite.errors %}
+                                <div class="text-danger small">{{ form.tipo_tramite.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.numero_orden.id_for_label }}" class="form-label">Número de Orden *</label>
+                            {{ form.numero_orden }}
+                            {% if form.numero_orden.errors %}
+                                <div class="text-danger small">{{ form.numero_orden.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.fecha_inscripcion.id_for_label }}" class="form-label">Fecha de Inscripción *</label>
+                            {{ form.fecha_inscripcion }}
+                            {% if form.fecha_inscripcion.errors %}
+                                <div class="text-danger small">{{ form.fecha_inscripcion.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.fecha_vencimiento.id_for_label }}" class="form-label">Fecha de Vencimiento</label>
+                            {{ form.fecha_vencimiento }}
+                            {% if form.fecha_vencimiento.errors %}
+                                <div class="text-danger small">{{ form.fecha_vencimiento.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.estado.id_for_label }}" class="form-label">Estado *</label>
+                        {{ form.estado }}
+                        {% if form.estado.errors %}
+                            <div class="text-danger small">{{ form.estado.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <h5 class="text-catamarca mb-3">Marcas y Señales</h5>
+
+                    <!-- Galería de imágenes predefinidas -->
+                    <div class="mb-3">
+                        <label class="form-label">Seleccionar Marca Predefinida</label>
+                        <div class="row g-2" id="galeria-marcas">
+                            {% for imagen in imagenes_predefinidas %}
+                            <div class="col-4 col-sm-3">
+                                <div class="card marca-predefinida" data-imagen-id="{{ imagen.id }}" data-imagen-url="{{ imagen.imagen.url }}">
+                                    <img src="{{ imagen.imagen.url }}" class="card-img-top" alt="{{ imagen.nombre }}" style="height: 80px; object-fit: cover;">
+                                    <div class="card-body p-2">
+                                        <small class="card-text">{{ imagen.nombre }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="col-12">
+                                <p class="text-muted">No hay imágenes predefinidas cargadas.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.descripcion_marca.id_for_label }}" class="form-label">Descripción de la Marca *</label>
+                        {{ form.descripcion_marca }}
+                        {% if form.descripcion_marca.errors %}
+                            <div class="text-danger small">{{ form.descripcion_marca.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.imagen_marca.id_for_label }}" class="form-label">Imagen de la Marca (se llena automáticamente al seleccionar arriba)</label>
+                        {{ form.imagen_marca }}
+                        {% if form.imagen_marca.errors %}
+                            <div class="text-danger small">{{ form.imagen_marca.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.tipo_senal.id_for_label }}" class="form-label">Tipo de Señal</label>
+                        {{ form.tipo_senal }}
+                        {% if form.tipo_senal.errors %}
+                            <div class="text-danger small">{{ form.tipo_senal.errors }}</div>
+                        {% endif %}
+                        {% if not form.tipo_senal.field.queryset.exists %}
+                        <div class="alert alert-warning mt-2">
+                            <small>No hay tipos de señales configurados. <a href="/admin/app_registros/tiposenal/add/" target="_blank">Agregar tipos de señales</a></small>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.descripcion_senal.id_for_label }}" class="form-label">Descripción de la Señal</label>
+                        {{ form.descripcion_senal }}
+                        {% if form.descripcion_senal.errors %}
+                            <div class="text-danger small">{{ form.descripcion_senal.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h5 class="text-catamarca mb-3">Inventario de Ganado</h5>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label for="{{ form.vacuno.id_for_label }}" class="form-label">Vacuno</label>
+                    {{ form.vacuno }}
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label for="{{ form.caballar.id_for_label }}" class="form-label">Caballar</label>
+                    {{ form.caballar }}
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label for="{{ form.mular.id_for_label }}" class="form-label">Mular</label>
+                    {{ form.mular }}
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label for="{{ form.asnal.id_for_label }}" class="form-label">Asnal</label>
+                    {{ form.asnal }}
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label for="{{ form.ovino.id_for_label }}" class="form-label">Ovino</label>
+                    {{ form.ovino }}
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label for="{{ form.cabrio.id_for_label }}" class="form-label">Cabrio</label>
+                    {{ form.cabrio }}
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <h5 class="text-catamarca mb-3">Información Administrativa</h5>
+
+                    <div class="mb-3">
+                        <label for="{{ form.valor_sellado.id_for_label }}" class="form-label">Valor del Sellado</label>
+                        {{ form.valor_sellado }}
+                        {% if form.valor_sellado.errors %}
+                            <div class="text-danger small">{{ form.valor_sellado.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.observaciones.id_for_label }}" class="form-label">Observaciones</label>
+                        {{ form.observaciones }}
+                        {% if form.observaciones.errors %}
+                            <div class="text-danger small">{{ form.observaciones.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <h5 class="text-catamarca mb-3">Carnet</h5>
+
+                    <div class="mb-3">
+                        <label for="{{ form.imagen_carnet_frente.id_for_label }}" class="form-label">Imagen Carnet Frente</label>
+                        {{ form.imagen_carnet_frente }}
+                        {% if form.imagen_carnet_frente.errors %}
+                            <div class="text-danger small">{{ form.imagen_carnet_frente.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.imagen_carnet_dorso.id_for_label }}" class="form-label">Imagen Carnet Dorso</label>
+                        {{ form.imagen_carnet_dorso }}
+                        {% if form.imagen_carnet_dorso.errors %}
+                            <div class="text-danger small">{{ form.imagen_carnet_dorso.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-catamarca me-2">
+                    💾 Guardar Marca/Señal
+                </button>
+                <a href="{% url 'lista_marcas' %}" class="btn btn-outline-secondary">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Template para opciones de campo -->
+<template id="campoOptionsTemplate">
+    <option value="">---------</option>
+</template>
+
+<style>
+.form-control:required {
+    border-left: 3px solid #0A2E5A;
+}
+
+.marca-predefinida {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.marca-predefinida:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.marca-predefinida.selected {
+    border: 2px solid #0A2E5A;
+    background-color: #f8f9fa;
+}
+
+.small-input {
+    max-width: 100px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Función para cargar campos según el productor seleccionado
+    function cargarCampos() {
+        const productorId = document.getElementById('id_productor').value;
+        const campoSelect = document.getElementById('id_campo');
+        
+        if (productorId) {
+            fetch(`/cargar-campos/?productor_id=${productorId}`)
+                .then(response => response.text())
+                .then(html => {
+                    campoSelect.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    campoSelect.innerHTML = '<option value="">Error al cargar campos</option>';
+                });
+        } else {
+            campoSelect.innerHTML = '<option value="">---------</option>';
+        }
+    }
+
+    // Event listener para cambios en el productor
+    document.getElementById('id_productor').addEventListener('change', cargarCampos);
+
+    // Cargar campos al iniciar si ya hay un productor seleccionado
+    if (document.getElementById('id_productor').value) {
+        cargarCampos();
+    }
+
+    // Galería de imágenes predefinidas
+    const galeriaMarcas = document.getElementById('galeria-marcas');
+    if (galeriaMarcas) {
+        galeriaMarcas.addEventListener('click', function(e) {
+            const card = e.target.closest('.marca-predefinida');
+            if (card) {
+                // Remover selección anterior
+                document.querySelectorAll('.marca-predefinida').forEach(el => {
+                    el.classList.remove('selected');
+                });
+                
+                // Agregar selección actual
+                card.classList.add('selected');
+                
+                // Obtener información de la imagen
+                const imagenId = card.getAttribute('data-imagen-id');
+                const imagenUrl = card.getAttribute('data-imagen-url');
+                
+                // Crear un nombre de archivo para la imagen seleccionada
+                const nombreArchivo = `marca_predefinida_${imagenId}.jpg`;
+                
+                // Aquí podrías enviar esta información al servidor
+                console.log('Imagen seleccionada:', imagenId, imagenUrl);
+                
+                // Mostrar mensaje al usuario
+                alert(`Has seleccionado la marca: ${card.querySelector('.card-text').textContent}`);
+            }
+        });
+    }
+
+    // Hacer que los campos numéricos sean más pequeños
+    const camposNumericos = ['id_vacuno', 'id_caballar', 'id_mular', 'id_asnal', 'id_ovino', 'id_cabrio'];
+    camposNumericos.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) {
+            campo.classList.add('small-input');
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Productor, Campo, TipoSenal, MarcaSenal, Solicitud, UserProfile, ChangeLog
+from .models import Productor, Campo, TipoSenal, MarcaSenal, Solicitud, UserProfile, ChangeLog, ImagenMarcaPredefinida
 
 @admin.register(Productor)
 class ProductorAdmin(admin.ModelAdmin):
@@ -44,3 +44,11 @@ class ChangeLogAdmin(admin.ModelAdmin):
     list_filter = ['modelo', 'accion', 'timestamp']
     search_fields = ['modelo', 'objeto_id', 'user__username']
     readonly_fields = ['timestamp']
+
+
+
+@admin.register(ImagenMarcaPredefinida)
+class ImagenMarcaPredefinidaAdmin(admin.ModelAdmin):
+    list_display = ['nombre', 'tipo_marca', 'activa']
+    list_filter = ['tipo_marca', 'activa']
+    search_fields = ['nombre', 'descripcion']

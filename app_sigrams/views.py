@@ -4,9 +4,11 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
-from app_registros.models import UserProfile, Productor, MarcaSenal, Solicitud, Campo, TipoSenal
+from app_registros.models import UserProfile, Productor, MarcaSenal, Solicitud, Campo, TipoSenal, ImagenMarcaPredefinida
 from app_registros.forms import ProductorForm, MarcaSenalForm, SolicitudForm
 from django.http import JsonResponse
+from django.views.generic import ListView, CreateView, UpdateView, DetailView
+from django.urls import reverse_lazy
 
 # Create your views here.
 
@@ -142,29 +144,35 @@ def lista_productores(request):
     """Lista todos los productores con filtros"""
     productores = Productor.objects.all()
     
-    # Filtros
+    # Filtros - ELIMINAMOS DISTRITO
     query = request.GET.get('q', '')
     estado = request.GET.get('estado', '')
-    distrito = request.GET.get('distrito', '')
+    localidad = request.GET.get('localidad', '')
+    departamento = request.GET.get('departamento', '')
     
     if query:
         productores = productores.filter(
             Q(nombre__icontains=query) | 
             Q(apellido__icontains=query) |
-            Q(dni__icontains=query)
+            Q(dni__icontains=query) |
+            Q(campo__icontains=query)
         )
     
     if estado:
         productores = productores.filter(estado=estado)
     
-    if distrito:
-        productores = productores.filter(distrito__icontains=distrito)
+    if localidad:
+        productores = productores.filter(localidad__icontains=localidad)
+    
+    if departamento:
+        productores = productores.filter(departamento__icontains=departamento)
     
     context = {
         'productores': productores,
         'query': query,
         'estado_filtro': estado,
-        'distrito_filtro': distrito,
+        'localidad_filtro': localidad,
+        'departamento_filtro': departamento,
     }
     return render(request, 'app_sigrams/productores/lista.html', context)
 
@@ -174,45 +182,65 @@ def detalle_productor(request, pk):
     productor = get_object_or_404(Productor, pk=pk)
     marcas = productor.marcas_senales.all()
     solicitudes = productor.solicitudes.all()
+    campos = productor.campos.all()
     
     context = {
         'productor': productor,
         'marcas': marcas,
         'solicitudes': solicitudes,
+        'campos': campos,
     }
     return render(request, 'app_sigrams/productores/detalle.html', context)
 
 @login_required
 def nuevo_productor(request):
     """Crear nuevo productor"""
-    if request.method == 'POST':
-        form = ProductorForm(request.POST)
-        if form.is_valid():
-            productor = form.save()
-            messages.success(request, f'Productor {productor.nombre_completo} creado exitosamente.')
-            return redirect('detalle_productor', pk=productor.pk)
-    else:
-        form = ProductorForm()
+    try:
+        if request.method == 'POST':
+            form = ProductorForm(request.POST)
+            if form.is_valid():
+                productor = form.save()
+                messages.success(request, f'Productor {productor.nombre_completo} creado exitosamente.')
+                return redirect('detalle_productor', pk=productor.pk)
+            else:
+                messages.error(request, 'Por favor, corrija los errores en el formulario.')
+        else:
+            form = ProductorForm()
+        
+        context = {'form': form, 'titulo': 'Nuevo Productor'}
+        return render(request, 'app_sigrams/productores/form.html', context)
     
-    context = {'form': form, 'titulo': 'Nuevo Productor'}
-    return render(request, 'app_sigrams/productores/form.html', context)
+    except Exception as e:
+        messages.error(request, f'Error al crear el productor: {str(e)}')
+        return redirect('lista_productores')
+
+
 
 @login_required
 def editar_productor(request, pk):
     """Editar productor existente"""
-    productor = get_object_or_404(Productor, pk=pk)
+    try:
+        productor = get_object_or_404(Productor, pk=pk)
+        
+        if request.method == 'POST':
+            form = ProductorForm(request.POST, instance=productor)
+            if form.is_valid():
+                productor = form.save()
+                messages.success(request, f'Productor {productor.nombre_completo} actualizado exitosamente.')
+                return redirect('detalle_productor', pk=productor.pk)
+            else:
+                messages.error(request, 'Por favor, corrija los errores en el formulario.')
+        else:
+            form = ProductorForm(instance=productor)
+        
+        context = {'form': form, 'titulo': 'Editar Productor', 'productor': productor}
+        return render(request, 'app_sigrams/productores/form.html', context)
     
-    if request.method == 'POST':
-        form = ProductorForm(request.POST, instance=productor)
-        if form.is_valid():
-            productor = form.save()
-            messages.success(request, f'Productor {productor.nombre_completo} actualizado exitosamente.')
-            return redirect('detalle_productor', pk=productor.pk)
-    else:
-        form = ProductorForm(instance=productor)
-    
-    context = {'form': form, 'titulo': 'Editar Productor', 'productor': productor}
-    return render(request, 'app_sigrams/productores/form.html', context)
+    except Exception as e:
+        messages.error(request, f'Error al editar el productor: {str(e)}')
+        return redirect('lista_productores')
+
+
 
 @login_required
 def eliminar_productor(request, pk):
@@ -232,10 +260,11 @@ def eliminar_productor(request, pk):
 # VISTAS PARA MARCAS Y SEÑALES
 # ============================================================================
 
+# Vistas para Marcas y Señales
 @login_required
 def lista_marcas(request):
     """Lista todas las marcas y señales"""
-    marcas = MarcaSenal.objects.all()
+    marcas = MarcaSenal.objects.select_related('productor', 'campo').all()
     
     # Filtros
     query = request.GET.get('q', '')
@@ -263,15 +292,19 @@ def lista_marcas(request):
     }
     return render(request, 'app_sigrams/marcas/lista.html', context)
 
+
+
 @login_required
 def detalle_marca(request, pk):
     """Detalle de una marca específica"""
-    marca = get_object_or_404(MarcaSenal, pk=pk)
+    marca = get_object_or_404(MarcaSenal.objects.select_related('productor', 'campo', 'tipo_senal'), pk=pk)
     
     context = {
         'marca': marca,
     }
     return render(request, 'app_sigrams/marcas/detalle.html', context)
+
+
 
 @login_required
 def nueva_marca(request):
@@ -282,11 +315,15 @@ def nueva_marca(request):
             marca = form.save()
             messages.success(request, f'Marca #{marca.numero_orden} creada exitosamente.')
             return redirect('detalle_marca', pk=marca.pk)
+        else:
+            messages.error(request, 'Por favor, corrija los errores en el formulario.')
     else:
         form = MarcaSenalForm()
     
     context = {'form': form, 'titulo': 'Nueva Marca y Señal'}
     return render(request, 'app_sigrams/marcas/form.html', context)
+
+
 
 @login_required
 def editar_marca(request, pk):
@@ -299,11 +336,59 @@ def editar_marca(request, pk):
             marca = form.save()
             messages.success(request, f'Marca #{marca.numero_orden} actualizada exitosamente.')
             return redirect('detalle_marca', pk=marca.pk)
+        else:
+            messages.error(request, 'Por favor, corrija los errores en el formulario.')
     else:
         form = MarcaSenalForm(instance=marca)
     
     context = {'form': form, 'titulo': 'Editar Marca y Señal', 'marca': marca}
     return render(request, 'app_sigrams/marcas/form.html', context)
+
+
+class ListaMarcasView(ListView):
+    model = MarcaSenal
+    template_name = 'marcas/lista.html'
+    context_object_name = 'marcas'
+    paginate_by = 20
+
+class NuevaMarcaView(CreateView):
+    model = MarcaSenal
+    form_class = MarcaSenalForm
+    template_name = 'app_sigrams/marcas/form.html'
+    success_url = reverse_lazy('lista_marcas')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Nueva Marca y Señal'
+        context['imagenes_predefinidas'] = ImagenMarcaPredefinida.objects.filter(activa=True)
+        return context
+
+class EditarMarcaView(UpdateView):
+    model = MarcaSenal
+    form_class = MarcaSenalForm
+    template_name = 'marcas/form.html'
+    success_url = reverse_lazy('lista_marcas')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = f'Editar Marca y Señal #{self.object.numero_orden}'
+        context['imagenes_predefinidas'] = ImagenMarcaPredefinida.objects.filter(activa=True)
+        return context
+
+class DetalleMarcaView(DetailView):
+    model = MarcaSenal
+    template_name = 'marcas/detalle.html'
+    context_object_name = 'marca'
+
+# Vista para cargar campos según el productor seleccionado (AJAX)
+def cargar_campos(request):
+    productor_id = request.GET.get('productor_id')
+    campos = Campo.objects.filter(productor_id=productor_id).order_by('nombre')
+    return render(request, 'marcas/campo_dropdown_options.html', {'campos': campos})
+
+
+
+
 
 # ============================================================================
 # VISTAS PARA SOLICITUDES

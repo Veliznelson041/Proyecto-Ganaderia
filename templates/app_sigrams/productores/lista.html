@@ -13,13 +13,14 @@
 </div>
 
 <!-- Filtros -->
+<!-- En la sección de filtros, reemplaza: -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="get" class="row g-3">
-            <div class="col-md-4">
-                <input type="text" name="q" class="form-control" placeholder="Buscar por nombre, apellido o DNI..." value="{{ query }}">
-            </div>
             <div class="col-md-3">
+                <input type="text" name="q" class="form-control" placeholder="Buscar por nombre, apellido, DNI o campo..." value="{{ query }}">
+            </div>
+            <div class="col-md-2">
                 <select name="estado" class="form-control">
                     <option value="">Todos los estados</option>
                     <option value="PENDIENTE" {% if estado_filtro == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
@@ -29,7 +30,10 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <input type="text" name="distrito" class="form-control" placeholder="Filtrar por distrito" value="{{ distrito_filtro }}">
+                <input type="text" name="localidad" class="form-control" placeholder="Filtrar por localidad" value="{{ localidad_filtro }}">
+            </div>
+            <div class="col-md-2">
+                <input type="text" name="departamento" class="form-control" placeholder="Filtrar por departamento" value="{{ departamento_filtro }}">
             </div>
             <div class="col-md-2">
                 <button type="submit" class="btn btn-catamarca w-100">Filtrar</button>
@@ -39,58 +43,49 @@
 </div>
 
 <!-- Tabla de productores -->
-<div class="card">
-    <div class="card-body">
-        {% if productores %}
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>Nombre</th>
-                        <th>DNI/CUIT</th>
-                        <th>Localidad</th>
-                        <th>Distrito</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for productor in productores %}
-                    <tr>
-                        <td>
-                            <strong>{{ productor.nombre_completo }}</strong>
-                        </td>
-                        <td>
-                            <small class="text-muted">{{ productor.dni }}</small>
-                            {% if productor.cuit %}<br><small>{{ productor.cuit }}</small>{% endif %}
-                        </td>
-                        <td>{{ productor.localidad }}</td>
-                        <td>{{ productor.distrito }}</td>
-                        <td>
-                            <span class="badge {% if productor.estado == 'REGISTRADO' %}bg-success
-                                            {% elif productor.estado == 'PENDIENTE' %}bg-warning
-                                            {% else %}bg-info{% endif %}">
-                                {{ productor.get_estado_display }}
-                            </span>
-                        </td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="{% url 'detalle_productor' productor.pk %}" class="btn btn-outline-primary">Ver</a>
-                                <a href="{% url 'editar_productor' productor.pk %}" class="btn btn-outline-secondary">Editar</a>
-                                <a href="{% url 'eliminar_productor' productor.pk %}" class="btn btn-outline-danger">Eliminar</a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="text-center py-4">
-            <p class="text-muted">No se encontraron productores.</p>
-            <a href="{% url 'nuevo_productor' %}" class="btn btn-catamarca">Agregar primer productor</a>
-        </div>
-        {% endif %}
-    </div>
-</div>
+<!-- En la tabla, actualiza las columnas: -->
+<table class="table table-striped table-hover">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>DNI/CUIT</th>
+            <th>Localidad</th>
+            <th>Departamento</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for productor in productores %}
+        <tr>
+            <td>
+                <strong>{{ productor.nombre_completo }}</strong>
+                {% if productor.campo %}
+                    <br><small class="text-muted">Campo: {{ productor.campo }}</small>
+                {% endif %}
+            </td>
+            <td>
+                <small class="text-muted">{{ productor.dni }}</small>
+                {% if productor.cuit %}<br><small>{{ productor.cuit }}</small>{% endif %}
+            </td>
+            <td>{{ productor.localidad|default:"-" }}</td>
+            <td>{{ productor.departamento|default:"-" }}</td>
+            <td>
+                <span class="badge {% if productor.estado == 'REGISTRADO' %}bg-success
+                                {% elif productor.estado == 'PENDIENTE' %}bg-warning
+                                {% else %}bg-info{% endif %}">
+                    {{ productor.get_estado_display }}
+                </span>
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <a href="{% url 'detalle_productor' productor.pk %}" class="btn btn-outline-primary">Ver</a>
+                    <a href="{% url 'editar_productor' productor.pk %}" class="btn btn-outline-secondary">Editar</a>
+                    <a href="{% url 'eliminar_productor' productor.pk %}" class="btn btn-outline-danger">Eliminar</a>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% endblock %}

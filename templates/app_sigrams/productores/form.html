@@ -110,7 +110,7 @@
                             {{ form.dni }}
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="{{ form.cuit.id_for_label }}" class="form-label">CUIT</label>
+                            <label for="{{ form.cuit.id_for_label }}" class="form-label">CUIT *</label>
                             {{ form.cuit }}
                         </div>
                     </div>
@@ -425,6 +425,7 @@ function updateMapDisplay() {
 }
 
 // Reverse geocoding CORREGIDO
+// Reverse geocoding MEJORADO
 function reverseGeocode(lat, lng) {
     fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=es`)
         .then(response => response.json())
@@ -432,41 +433,53 @@ function reverseGeocode(lat, lng) {
             if (data && data.address) {
                 const address = data.address;
                 
-                console.log('Datos de dirección:', address); // Para debugging
+                console.log('Datos de dirección completos:', address);
                 
-                // CORRECCIÓN: Mapeo correcto de campos
-                let calle = '';
-                if (address.road) {
-                    calle = address.road;
-                    if (address.house_number) {
-                        calle += ' ' + address.house_number;
-                    }
+                // Mapeo mejorado de campos
+                let calle = address.road || '';
+                if (address.house_number) {
+                    calle += ' ' + address.house_number;
                 }
                 
-                let localidad = address.village || address.town || address.city || '';
+                let localidad = address.village || address.town || address.city || address.hamlet || '';
                 let municipio = address.municipality || address.county || '';
                 let departamento = address.state_district || address.region || '';
                 let provincia = address.state || '';
                 
-                // Para Argentina, ajustamos los nombres
-                if (provincia === 'Catamarca Province') provincia = 'Catamarca';
-                if (departamento.includes('Department')) departamento = departamento.replace(' Department', '');
+                // Limpiar y formatear nombres para Argentina
+                if (provincia.includes('Province')) {
+                    provincia = provincia.replace(' Province', '');
+                }
+                if (provincia.includes('Departamento')) {
+                    provincia = provincia.replace('Departamento ', '');
+                }
                 
                 // Llenar campos del formulario
-                document.getElementById('{{ form.calle.id_for_label }}').value = calle;
+                document.getElementById('{{ form.calle.id_for_label }}').value = calle.trim();
                 document.getElementById('{{ form.localidad.id_for_label }}').value = localidad;
                 document.getElementById('{{ form.municipio.id_for_label }}').value = municipio;
                 document.getElementById('{{ form.departamento.id_for_label }}').value = departamento;
                 document.getElementById('{{ form.provincia.id_for_label }}').value = provincia;
                 
-                // Sugerir nombre del campo basado en la localidad
+                // Si no se encontró localidad, mostrar alerta
+                if (!localidad) {
+                    setTimeout(() => {
+                        alert('⚠️ No se pudo detectar la localidad automáticamente. Por favor, ingrésela manualmente.');
+                        document.getElementById('{{ form.localidad.id_for_label }}').focus();
+                    }, 500);
+                }
+                
+                // Sugerir nombre del campo basado en la localidad o dirección
                 if (localidad) {
                     document.getElementById('{{ form.campo.id_for_label }}').value = `Campo ${localidad}`;
+                } else if (calle) {
+                    document.getElementById('{{ form.campo.id_for_label }}').value = `Campo ${calle.split(' ')[0]}`;
                 }
             }
         })
         .catch(error => {
             console.error('Error en reverse geocoding:', error);
+            alert('Error al obtener la dirección. Por favor, complete los campos manualmente.');
         });
 }
 

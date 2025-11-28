@@ -1,0 +1,297 @@
+{% extends 'app_sigrams/base.html' %}
+
+{% block title %}Detalle de Productor - SIGRAMS{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2 text-catamarca">Detalle del Productor</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'lista_productores' %}" class="btn btn-outline-secondary me-2">
+            ← Volver a la lista
+        </a>
+        <a href="{% url 'editar_productor' productor.pk %}" class="btn btn-catamarca me-2">
+            ✏️ Editar
+        </a>
+        <a href="{% url 'nueva_marca' %}?productor={{ productor.pk }}" class="btn btn-catamarca">
+            🏷️ Nueva Marca
+        </a>
+    </div>
+</div>
+
+<!-- Mensajes -->
+{% if messages %}
+<div class="mb-4">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-catamarca text-white">
+                <h5 class="mb-0">Datos Personales</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th>Nombre:</th>
+                        <td>{{ productor.nombre_completo }}</td>
+                    </tr>
+                    <tr>
+                        <th>DNI:</th>
+                        <td>{{ productor.dni }}</td>
+                    </tr>
+                    <tr>
+                        <th>CUIT:</th>
+                        <td>{{ productor.cuit|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Teléfono:</th>
+                        <td>{{ productor.telefono|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ productor.email|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Estado:</th>
+                        <td>
+                            <span class="badge {% if productor.estado == 'REGISTRADO' %}bg-success
+                                            {% elif productor.estado == 'PENDIENTE' %}bg-warning
+                                            {% else %}bg-info{% endif %}">
+                                {{ productor.get_estado_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Fecha de Registro:</th>
+                        <td>{{ productor.fecha_registro|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-catamarca text-white">
+                <h5 class="mb-0">Ubicación</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th>Calle:</th>
+                        <td>{{ productor.calle|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Campo:</th>
+                        <td>{{ productor.campo|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Localidad:</th>
+                        <td>{{ productor.localidad|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Municipio:</th>
+                        <td>{{ productor.municipio|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Departamento:</th>
+                        <td>{{ productor.departamento|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Provincia:</th>
+                        <td>{{ productor.provincia|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Área (hectáreas):</th>
+                        <td>{{ productor.area_hectareas|default:"No especificado" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Coordenadas:</th>
+                        <td>
+                            {% if productor.latitud and productor.longitud %}
+                                {{ productor.latitud }}, {{ productor.longitud }}
+                            {% else %}
+                                No especificadas
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-catamarca text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Observaciones</h5>
+            </div>
+            <div class="card-body">
+                <p>{{ productor.observaciones|default:"No hay observaciones."|linebreaks }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mapa de ubicación -->
+{% if productor.latitud and productor.longitud %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-catamarca text-white">
+                <h5 class="mb-0">🗺️ Ubicación en el Mapa</h5>
+            </div>
+            <div class="card-body">
+                <div id="map" style="height: 400px; border-radius: 8px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const map = L.map('map').setView([{{ productor.latitud }}, {{ productor.longitud }}], 14);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    
+    L.marker([{{ productor.latitud }}, {{ productor.longitud }}])
+        .addTo(map)
+        .bindPopup(`
+            <b>{{ productor.nombre_completo }}</b><br>
+            {{ productor.calle|default:"" }}<br>
+            {{ productor.localidad|default:"" }}
+        `)
+        .openPopup();
+    
+    {% if productor.area_hectareas %}
+    const radius = Math.sqrt({{ productor.area_hectareas }} * 10000) / Math.PI;
+    L.circle([{{ productor.latitud }}, {{ productor.longitud }}], {
+        color: 'red',
+        fillColor: '#f03',
+        fillOpacity: 0.2,
+        radius: radius
+    }).addTo(map);
+    {% endif %}
+});
+</script>
+{% endif %}
+
+<!-- Sección de Marcas y Señales -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-catamarca text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Marcas y Señales Registradas</h5>
+                <a href="{% url 'nueva_marca' %}?productor={{ productor.pk }}" class="btn btn-light btn-sm">
+                    🏷️ Nueva Marca
+                </a>
+            </div>
+            <div class="card-body">
+                {% if marcas %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Número de Orden</th>
+                                <th>Tipo de Trámite</th>
+                                <th>Estado</th>
+                                <th>Fecha de Inscripción</th>
+                                <th>Total Ganado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for marca in marcas %}
+                            <tr>
+                                <td>{{ marca.numero_orden }}</td>
+                                <td>{{ marca.get_tipo_tramite_display }}</td>
+                                <td>
+                                    <span class="badge {% if marca.estado == 'VIGENTE' %}bg-success
+                                                    {% elif marca.estado == 'VENCIDA' %}bg-warning
+                                                    {% elif marca.estado == 'BAJA' %}bg-danger
+                                                    {% else %}bg-secondary{% endif %}">
+                                        {{ marca.get_estado_display }}
+                                    </span>
+                                </td>
+                                <td>{{ marca.fecha_inscripcion|date:"d/m/Y" }}</td>
+                                <td>{{ marca.total_ganado }}</td>
+                                <td>
+                                    <a href="{% url 'detalle_marca' marca.pk %}" class="btn btn-sm btn-outline-primary">Ver</a>
+                                    <a href="{% url 'editar_marca' marca.pk %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center">No hay marcas registradas para este productor.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sección de Solicitudes -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-catamarca text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Solicitudes</h5>
+                <a href="{% url 'nueva_solicitud' %}?productor={{ productor.pk }}" class="btn btn-light btn-sm">
+                    📋 Nueva Solicitud
+                </a>
+            </div>
+            <div class="card-body">
+                {% if solicitudes %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Tipo de Trámite</th>
+                                <th>Estado</th>
+                                <th>Fecha de Solicitud</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for solicitud in solicitudes %}
+                            <tr>
+                                <td>{{ solicitud.id }}</td>
+                                <td>{{ solicitud.get_tipo_tramite_display }}</td>
+                                <td>
+                                    <span class="badge {% if solicitud.estado == 'APROBADO' %}bg-success
+                                                    {% elif solicitud.estado == 'PENDIENTE' %}bg-warning
+                                                    {% else %}bg-danger{% endif %}">
+                                        {{ solicitud.get_estado_display }}
+                                    </span>
+                                </td>
+                                <td>{{ solicitud.fecha_solicitud|date:"d/m/Y" }}</td>
+                                <td>
+                                    <a href="#" class="btn btn-sm btn-outline-primary">Ver</a>
+                                    <a href="#" class="btn btn-sm btn-outline-secondary">Editar</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center">No hay solicitudes para este productor.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

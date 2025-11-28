@@ -1,0 +1,225 @@
+{% extends 'app_sigrams/base.html' %}
+
+{% block title %}Detalle de Marca/Señal - SIGRAMS{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2 text-catamarca">Detalle de Marca/Señal</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'lista_marcas' %}" class="btn btn-outline-secondary me-2">
+            ← Volver a la lista
+        </a>
+        <a href="{% url 'editar_marca' marca.pk %}" class="btn btn-catamarca">
+            ✏️ Editar
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-catamarca text-white">
+                <h5 class="mb-0">Datos Básicos</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th>Número de Orden:</th>
+                        <td>{{ marca.numero_orden }}</td>
+                    </tr>
+                    <tr>
+                        <th>Productor:</th>
+                        <td>
+                            <a href="{% url 'detalle_productor' marca.productor.pk %}">
+                                {{ marca.productor.nombre_completo }}
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Campo:</th>
+                        <td>{{ marca.campo.nombre }}</td>
+                    </tr>
+                    <tr>
+                        <th>Tipo de Trámite:</th>
+                        <td>{{ marca.get_tipo_tramite_display }}</td>
+                    </tr>
+                    <tr>
+                        <th>Estado:</th>
+                        <td>
+                            <span class="badge {% if marca.estado == 'VIGENTE' %}bg-success
+                                            {% elif marca.estado == 'VENCIDA' %}bg-warning
+                                            {% elif marca.estado == 'BAJA' %}bg-danger
+                                            {% else %}bg-secondary{% endif %}">
+                                {{ marca.get_estado_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Fecha de Inscripción:</th>
+                        <td>{{ marca.fecha_inscripcion|date:"d/m/Y" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Fecha de Vencimiento:</th>
+                        <td>{{ marca.fecha_vencimiento|date:"d/m/Y"|default:"No especificada" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-catamarca text-white">
+                <h5 class="mb-0">Marcas y Señales</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th>Descripción de la Marca:</th>
+                        <td>{{ marca.descripcion_marca|linebreaks }}</td>
+                    </tr>
+                    {% if marca.tipo_senal %}
+                    <tr>
+                        <th>Tipo de Señal:</th>
+                        <td>{{ marca.tipo_senal }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if marca.descripcion_senal %}
+                    <tr>
+                        <th>Descripción de la Señal:</th>
+                        <td>{{ marca.descripcion_senal|linebreaks }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+
+                {% if marca.imagen_marca %}
+                <div class="mt-3">
+                    <strong>Imagen de la Marca:</strong><br>
+                    <img src="{{ marca.imagen_marca.url }}" alt="Imagen de la marca" class="img-fluid mt-2" style="max-height: 200px;">
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header bg-catamarca text-white">
+                <h5 class="mb-0">Inventario de Ganado</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-2">
+                        <h6>Vacuno</h6>
+                        <p class="h4">{{ marca.vacuno }}</p>
+                    </div>
+                    <div class="col-md-2">
+                        <h6>Caballar</h6>
+                        <p class="h4">{{ marca.caballar }}</p>
+                    </div>
+                    <div class="col-md-2">
+                        <h6>Mular</h6>
+                        <p class="h4">{{ marca.mular }}</p>
+                    </div>
+                    <div class="col-md-2">
+                        <h6>Asnal</h6>
+                        <p class="h4">{{ marca.asnal }}</p>
+                    </div>
+                    <div class="col-md-2">
+                        <h6>Ovino</h6>
+                        <p class="h4">{{ marca.ovino }}</p>
+                    </div>
+                    <div class="col-md-2">
+                        <h6>Cabrio</h6>
+                        <p class="h4">{{ marca.cabrio }}</p>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12 text-center">
+                        <h5>Total de Ganado: {{ marca.total_ganado }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-catamarca text-white">
+                <h5 class="mb-0">Información Administrativa</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th>Valor del Sellado:</th>
+                        <td>
+                            {% if marca.valor_sellado %}
+                                ${{ marca.valor_sellado }}
+                            {% else %}
+                                No especificado
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Observaciones:</th>
+                        <td>{{ marca.observaciones|default:"No hay observaciones."|linebreaks }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-catamarca text-white">
+                <h5 class="mb-0">Carnet</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if marca.imagen_carnet_frente %}
+                    <div class="col-md-6 text-center">
+                        <strong>Frente</strong><br>
+                        <img src="{{ marca.imagen_carnet_frente.url }}" alt="Carnet frente" class="img-fluid mt-2" style="max-height: 200px;">
+                    </div>
+                    {% endif %}
+                    {% if marca.imagen_carnet_dorso %}
+                    <div class="col-md-6 text-center">
+                        <strong>Dorso</strong><br>
+                        <img src="{{ marca.imagen_carnet_dorso.url }}" alt="Carnet dorso" class="img-fluid mt-2" style="max-height: 200px;">
+                    </div>
+                    {% endif %}
+                </div>
+                {% if not marca.imagen_carnet_frente and not marca.imagen_carnet_dorso %}
+                <p class="text-muted text-center">No hay imágenes del carnet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-catamarca text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Auditoría</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th>Fecha de Creación:</th>
+                        <td>{{ marca.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Última Modificación:</th>
+                        <td>{{ marca.ultima_modificacion|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
