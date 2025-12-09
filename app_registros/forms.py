@@ -1,7 +1,37 @@
 from django import forms
+from django.contrib.auth.models import User
 from .models import Productor, Campo, MarcaSenal, Solicitud, TipoSenal
 
-class ProductorForm(forms.ModelForm):
+class ValidationStyleMixin:
+    """
+    Mixin para agregar clases CSS de validación (is-valid, is-invalid)
+    a los widgets de los campos basándose en el estado de validación.
+    """
+    def is_valid(self):
+        ret = super().is_valid()
+        for field_name, field in self.fields.items():
+            widget = field.widget
+            # Asegurarse de que 'class' esté en attrs
+            if 'class' not in widget.attrs:
+                widget.attrs['class'] = 'form-control'
+            
+            # Limpiar clases previas de validación para evitar duplicados si se re-renderiza
+            classes = widget.attrs['class'].split()
+            classes = [c for c in classes if c not in ['is-valid', 'is-invalid']]
+            
+            if field_name in self.errors:
+                classes.append('is-invalid')
+            elif self.data and field_name in self.data and not self.errors.get(field_name):
+                # Solo marcar como válido si hay datos y no hay errores
+                # Excluir campos vacíos opcionales de ser marcados como verdes
+                value = self.cleaned_data.get(field_name)
+                if value:
+                    classes.append('is-valid')
+            
+            widget.attrs['class'] = ' '.join(classes)
+        return ret
+
+class ProductorForm(ValidationStyleMixin, forms.ModelForm):
     class Meta:
         model = Productor
         fields = [
@@ -13,8 +43,8 @@ class ProductorForm(forms.ModelForm):
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'required': 'required'}),
             'apellido': forms.TextInput(attrs={'class': 'form-control', 'required': 'required'}),
-            'dni': forms.TextInput(attrs={'class': 'form-control', 'required': 'required'}),
-            'cuit': forms.TextInput(attrs={'class': 'form-control'}),
+            'dni': forms.TextInput(attrs={'class': 'form-control', 'required': 'required', 'maxlength': '8', 'minlength': '8'}),
+            'cuit': forms.TextInput(attrs={'class': 'form-control', 'maxlength': '11', 'minlength': '11'}),
             'calle': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),  # Solo lectura
             'campo': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),  # Solo lectura
             'localidad': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),  # Solo lectura
@@ -57,9 +87,52 @@ class ProductorForm(forms.ModelForm):
         self.fields['longitud'].required = True
         self.fields['estado'].required = True
 
-# ... (los demás forms permanecen igual)
+    def clean_dni(self):
+        dni = self.cleaned_data.get('dni')
+        if not dni.isdigit():
+            raise forms.ValidationError("El DNI debe contener solo números.")
+        if len(dni) != 8:
+            raise forms.ValidationError("El DNI debe tener exactamente 8 dígitos.")
+        
+        # Verificar unicidad si es un nuevo registro
+        if not self.instance.pk:
+            if Productor.objects.filter(dni=dni).exists():
+                raise forms.ValidationError("Ya existe un productor registrado con este DNI.")
+        else:
+            # Si es edición, verificar que no pertenezca a otro
+            if Productor.objects.filter(dni=dni).exclude(pk=self.instance.pk).exists():
+                raise forms.ValidationError("Ya existe otro productor registrado con este DNI.")
+        return dni
 
-class CampoForm(forms.ModelForm):
+    def clean_cuit(self):
+        cuit = self.cleaned_data.get('cuit')
+        if not cuit:
+            return cuit
+            
+        cuit = cuit.replace('-', '').replace(' ', '')
+        if not cuit.isdigit():
+            raise forms.ValidationError("El CUIT debe contener solo números.")
+        if len(cuit) != 11:
+            raise forms.ValidationError("El CUIT debe tener 11 dígitos.")
+            
+        # Validación básica de algoritmo de CUIT
+        base = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
+        aux = 0
+        for i in range(10):
+            aux += int(cuit[i]) * base[i]
+        
+        aux = 11 - (aux % 11)
+        if aux == 11:
+            aux = 0
+        elif aux == 10:
+            aux = 9
+            
+        if int(cuit[10]) != aux:
+            raise forms.ValidationError("El CUIT no es válido (dígito verificador incorrecto).")
+            
+        return cuit
+
+class CampoForm(ValidationStyleMixin, forms.ModelForm):
     class Meta:
         model = Campo
         fields = ['nombre', 'area_hectareas', 'distrito', 'departamento', 'latitud', 'longitud', 'observaciones']
@@ -73,7 +146,7 @@ class CampoForm(forms.ModelForm):
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
-class MarcaSenalForm(forms.ModelForm):
+class MarcaSenalForm(ValidationStyleMixin, forms.ModelForm):
     class Meta:
         model = MarcaSenal
         fields = [
@@ -103,7 +176,7 @@ class MarcaSenalForm(forms.ModelForm):
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
-class SolicitudForm(forms.ModelForm):
+class SolicitudForm(ValidationStyleMixin, forms.ModelForm):
     class Meta:
         model = Solicitud
         fields = ['productor', 'tipo_tramite', 'marca_senal', 'documento_adjunto', 'observaciones']

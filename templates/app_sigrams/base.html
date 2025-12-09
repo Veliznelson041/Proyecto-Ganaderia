@@ -136,24 +136,28 @@
 </div>
 
     <!-- Mensajes -->
-    <div class="toast-container position-fixed top-0 end-0 p-3">
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
         {% for message in messages %}
-        <div class="toast show" role="alert">
-            <div class="toast-header {% if message.tags %}bg-{{ message.tags }}{% endif %} text-white">
-                <strong class="me-auto">
+        <div class="toast show align-items-center text-white {% if message.tags == 'success' %}bg-success{% elif message.tags == 'error' %}bg-danger{% elif message.tags == 'warning' %}bg-warning text-dark{% else %}bg-info{% endif %} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
                     {% if message.tags == 'success' %}✅
                     {% elif message.tags == 'error' %}❌
                     {% elif message.tags == 'warning' %}⚠️
                     {% else %}ℹ️{% endif %}
-                    {{ message.tags|title }}
-                </strong>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body">
-                {{ message }}
+                    {{ message }}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
         </div>
         {% endfor %}
+    </div>
+
+    <!-- Loader Overlay -->
+    <div id="page-loader" class="position-fixed top-0 start-0 w-100 h-100 d-none justify-content-center align-items-center" style="background: rgba(255,255,255,0.8); z-index: 9999;">
+        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
     </div>
 
     <footer class="bg-dark text-white text-center py-3 mt-5">
@@ -165,6 +169,24 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Incluir el script de geocodificación -->
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+    <script>
+        // Mostrar loader al enviar formularios
+        document.addEventListener('DOMContentLoaded', function() {
+            var forms = document.querySelectorAll('form');
+            var loader = document.getElementById('page-loader');
+            
+            forms.forEach(function(form) {
+                form.addEventListener('submit', function() {
+                    // Solo mostrar si el formulario es válido (validación HTML5 básica)
+                    if (form.checkValidity()) {
+                        loader.classList.remove('d-none');
+                        loader.classList.add('d-flex');
+                    }
+                });
+            });
+        });
+    </script>
 
     <!-- Bloque para scripts específicos de cada template (ej: el código del mapa) -->
     {% block scripts %}{% endblock %}

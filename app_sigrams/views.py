@@ -143,15 +143,15 @@ def lista_productores(request):
     productores = Productor.objects.all()
     
     # Filtros
-    query = request.GET.get('q', '')
+    consulta = request.GET.get('q', '')
     estado = request.GET.get('estado', '')
     distrito = request.GET.get('distrito', '')
     
-    if query:
+    if consulta:
         productores = productores.filter(
-            Q(nombre__icontains=query) | 
-            Q(apellido__icontains=query) |
-            Q(dni__icontains=query)
+            Q(nombre__icontains=consulta) | 
+            Q(apellido__icontains=consulta) |
+            Q(dni__icontains=consulta)
         )
     
     if estado:
@@ -162,7 +162,7 @@ def lista_productores(request):
     
     context = {
         'productores': productores,
-        'query': query,
+        'consulta': consulta,
         'estado_filtro': estado,
         'distrito_filtro': distrito,
     }
