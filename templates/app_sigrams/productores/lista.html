@@ -3,6 +3,7 @@
 {% block title %}Productores - SIGRAMS{% endblock %}
 
 {% block content %}
+
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
     <h1 class="h2 text-catamarca">Gestión de Productores</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
@@ -16,31 +17,36 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="get" class="row g-3">
-            <div class="col-md-4">
-                <div class="input-group">
-                    <span class="input-group-text">🔍</span>
-                    <input type="text" name="q" class="form-control" placeholder="Buscar por nombre, DNI o CUIT..."
-                        value="{{ q|default:'' }}">
-                </div>
-            </div>
+
             <div class="col-md-3">
+                <input type="text" name="q" class="form-control"
+                    placeholder="Buscar por nombre, apellido, DNI, CUIT o campo..."
+                    value="{{ q|default:query }}">
+            </div>
+
+            <div class="col-md-2">
                 <select name="estado" class="form-select">
                     <option value="">Todos los estados</option>
-
-                    <option value="REGISTRADO" {% if estado_filtro == 'REGISTRADO' %}selected{% endif %}>
-                        Registrado
-                    </option>
-
-                    <option value="PENDIENTE" {% if estado_filtro == 'PENDIENTE' %}selected{% endif %}>
-                        Pendiente
-                    </option>
+                    <option value="REGISTRADO" {% if estado_filtro == 'REGISTRADO' %}selected{% endif %}>Registrado</option>
+                    <option value="PENDIENTE" {% if estado_filtro == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
                 </select>
             </div>
+
+            <div class="col-md-3">
+                <input type="text" name="localidad" class="form-control"
+                       placeholder="Filtrar por localidad" value="{{ localidad_filtro }}">
+            </div>
+
+            <div class="col-md-2">
+                <input type="text" name="departamento" class="form-control"
+                       placeholder="Filtrar por departamento" value="{{ departamento_filtro }}">
+            </div>
+
             <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">Filtrar</button>
             </div>
 
-            {% if q or estado_filtro %}
+            {% if q or estado_filtro or localidad_filtro or departamento_filtro %}
             <div class="col-md-2">
                 <a href="{% url 'lista_productores' %}" class="btn btn-outline-secondary w-100">Limpiar</a>
             </div>
@@ -49,9 +55,10 @@
     </div>
 </div>
 
-<!-- Tabla de productores -->
+<!-- Tabla -->
 <div class="card">
     <div class="card-body">
+
         {% if productores %}
         <div class="table-responsive">
             <table class="table table-striped table-hover align-middle">
@@ -60,26 +67,33 @@
                         <th>Nombre</th>
                         <th>DNI/CUIT</th>
                         <th>Localidad</th>
-                        <th>Distrito</th>
+                        <th>Departamento</th>
                         <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
+
                 <tbody>
                     {% for productor in productores %}
                     <tr>
+
                         <td>
                             <strong>{{ productor.nombre_completo }}</strong>
+                            {% if productor.campo %}
+                                <br><small class="text-muted">Campo: {{ productor.campo }}</small>
+                            {% endif %}
                         </td>
+
                         <td>
                             <small class="text-muted">{{ productor.dni }}</small>
                             {% if productor.cuit %}
-                            <br>
-                            <small>{{ productor.cuit }}</small>
+                                <br><small>{{ productor.cuit }}</small>
                             {% endif %}
                         </td>
-                        <td>{{ productor.localidad }}</td>
-                        <td>{{ productor.distrito }}</td>
+
+                        <td>{{ productor.localidad|default:"-" }}</td>
+                        <td>{{ productor.departamento|default:"-" }}</td>
+
                         <td>
                             <span class="badge 
                                 {% if productor.estado == 'REGISTRADO' %}bg-success
@@ -88,6 +102,7 @@
                                 {{ productor.get_estado_display }}
                             </span>
                         </td>
+
                         <td>
                             <div class="btn-group btn-group-sm">
                                 <a href="{% url 'detalle_productor' productor.pk %}" class="btn btn-outline-primary">Ver</a>
@@ -95,9 +110,11 @@
                                 <a href="{% url 'eliminar_productor' productor.pk %}" class="btn btn-outline-danger">Eliminar</a>
                             </div>
                         </td>
+
                     </tr>
                     {% endfor %}
                 </tbody>
+
             </table>
         </div>
 
@@ -107,6 +124,8 @@
             <a href="{% url 'nuevo_productor' %}" class="btn btn-catamarca">Agregar primer productor</a>
         </div>
         {% endif %}
+
     </div>
 </div>
+
 {% endblock %}
