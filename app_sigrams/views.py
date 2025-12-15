@@ -9,8 +9,27 @@ from app_registros.forms import ProductorForm, MarcaSenalForm, SolicitudForm
 from django.http import JsonResponse
 from django.views.generic import ListView, CreateView, UpdateView, DetailView
 from django.urls import reverse_lazy
+from django.conf import settings
 
 # Create your views here.
+
+
+# app_sigrams/views.py - Agregar estas funciones al inicio
+def get_campos_por_productor(request, productor_id):
+    """Obtener campos de un productor específico (para AJAX)"""
+    campos = Campo.objects.filter(productor_id=productor_id).values('id', 'nombre', 'distrito')
+    return JsonResponse(list(campos), safe=False)
+
+def get_imagenes_marcas(request):
+    """Obtener imágenes predefinidas de marcas (para AJAX)"""
+    imagenes = ImagenMarcaPredefinida.objects.filter(activa=True).values('id', 'nombre', 'imagen', 'tipo_marca')
+    # Convertir URLs absolutas
+    for imagen in imagenes:
+        if imagen['imagen']:
+            imagen['imagen_url'] = request.build_absolute_uri(settings.MEDIA_URL + imagen['imagen'])
+    return JsonResponse(list(imagenes), safe=False)
+
+
 
 @login_required
 def home(request):
