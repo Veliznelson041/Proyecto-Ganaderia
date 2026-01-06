@@ -259,13 +259,28 @@
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Función para cargar campos según el productor seleccionado
+document.addEventListener('DOMContentLoaded', function () {
+
+    /* ===============================
+       CARGA DE CAMPOS POR PRODUCTOR
+    =============================== */
+
+    const productorSelect = document.getElementById('id_productor');
+    const campoSelect = document.getElementById('id_campo');
+
     function cargarCampos() {
-        const productorId = document.getElementById('id_productor').value;
-        const campoSelect = document.getElementById('id_campo');
-        
+        const productorId = productorSelect.value;
+
+        if (!campoSelect) return;
+
+        campoSelect.innerHTML = '<option value="">Cargando...</option>';
+
         if (productorId) {
+
+            // 👉 Elegí UNA de estas dos según tu backend
+            // ------------------------------------------------
+
+            // OPCIÓN 1: si tu endpoint devuelve HTML
             fetch(`/cargar-campos/?productor_id=${productorId}`)
                 .then(response => response.text())
                 .then(html => {
@@ -275,57 +290,127 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error('Error:', error);
                     campoSelect.innerHTML = '<option value="">Error al cargar campos</option>';
                 });
+
+            // OPCIÓN 2: si tu endpoint devuelve JSON (descomentá si usás este)
+            /*
+            fetch(`/ajax/campos/${productorId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    campoSelect.innerHTML = '<option value="">---------</option>';
+                    data.forEach(campo => {
+                        const option = document.createElement('option');
+                        option.value = campo.id;
+                        option.textContent = `${campo.nombre} - ${campo.distrito}`;
+                        campoSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    campoSelect.innerHTML = '<option value="">Error al cargar campos</option>';
+                });
+            */
+
         } else {
             campoSelect.innerHTML = '<option value="">---------</option>';
         }
     }
 
-    // Event listener para cambios en el productor
-    document.getElementById('id_productor').addEventListener('change', cargarCampos);
+    if (productorSelect) {
+        productorSelect.addEventListener('change', cargarCampos);
 
-    // Cargar campos al iniciar si ya hay un productor seleccionado
-    if (document.getElementById('id_productor').value) {
-        cargarCampos();
+        // Si ya viene seleccionado
+        if (productorSelect.value) {
+            cargarCampos();
+        }
     }
 
-    // Galería de imágenes predefinidas
+    /* ===============================
+       GALERÍA DE MARCAS (AJAX)
+    =============================== */
+
     const galeriaMarcas = document.getElementById('galeria-marcas');
+
     if (galeriaMarcas) {
-        galeriaMarcas.addEventListener('click', function(e) {
-            const card = e.target.closest('.marca-predefinida');
-            if (card) {
-                // Remover selección anterior
-                document.querySelectorAll('.marca-predefinida').forEach(el => {
-                    el.classList.remove('selected');
+        fetch('/ajax/imagenes-marcas/')
+            .then(response => response.json())
+            .then(imagenes => {
+                galeriaMarcas.innerHTML = '';
+
+                imagenes.forEach(imagen => {
+                    const col = document.createElement('div');
+                    col.className = 'col-4 col-sm-3 mb-2';
+                    col.innerHTML = `
+                        <div class="card marca-predefinida"
+                             data-imagen-id="${imagen.id}"
+                             data-imagen-url="${imagen.imagen_url}"
+                             data-imagen-nombre="${imagen.nombre}">
+                            <img src="${imagen.imagen_url}"
+                                 class="card-img-top"
+                                 alt="${imagen.nombre}"
+                                 style="height: 80px; object-fit: cover;">
+                            <div class="card-body p-1">
+                                <small class="card-text d-block text-truncate">${imagen.nombre}</small>
+                                <small class="text-muted">${imagen.tipo_marca}</small>
+                            </div>
+                        </div>
+                    `;
+                    galeriaMarcas.appendChild(col);
                 });
-                
-                // Agregar selección actual
-                card.classList.add('selected');
-                
-                // Obtener información de la imagen
-                const imagenId = card.getAttribute('data-imagen-id');
-                const imagenUrl = card.getAttribute('data-imagen-url');
-                
-                // Crear un nombre de archivo para la imagen seleccionada
-                const nombreArchivo = `marca_predefinida_${imagenId}.jpg`;
-                
-                // Aquí podrías enviar esta información al servidor
-                console.log('Imagen seleccionada:', imagenId, imagenUrl);
-                
-                // Mostrar mensaje al usuario
-                alert(`Has seleccionado la marca: ${card.querySelector('.card-text').textContent}`);
+            })
+            .catch(error => console.error('Error cargando imágenes:', error));
+    }
+
+    /* ===============================
+       SELECCIÓN DE MARCA
+    =============================== */
+
+    if (galeriaMarcas) {
+        galeriaMarcas.addEventListener('click', function (e) {
+            const card = e.target.closest('.marca-predefinida');
+            if (!card) return;
+
+            // Quitar selección previa
+            document.querySelectorAll('.marca-predefinida').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            // Seleccionar actual
+            card.classList.add('selected');
+
+            const imagenId = card.dataset.imagenId;
+            const nombreMarca = card.dataset.imagenNombre;
+
+            // Campo oculto
+            const inputImagen = document.getElementById('id_imagen_marca');
+            if (inputImagen) {
+                inputImagen.value = imagenId;
             }
+
+            alert(`Marca "${nombreMarca}" seleccionada. Recuerda guardar el formulario.`);
         });
     }
 
-    // Hacer que los campos numéricos sean más pequeños
-    const camposNumericos = ['id_vacuno', 'id_caballar', 'id_mular', 'id_asnal', 'id_ovino', 'id_cabrio'];
+    /* ===============================
+       INPUTS NUMÉRICOS CHICOS
+    =============================== */
+
+    const camposNumericos = [
+        'id_vacuno',
+        'id_caballar',
+        'id_mular',
+        'id_asnal',
+        'id_ovino',
+        'id_cabrio'
+    ];
+
     camposNumericos.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) {
             campo.classList.add('small-input');
         }
     });
+
 });
+
 </script>
 {% endblock %}
