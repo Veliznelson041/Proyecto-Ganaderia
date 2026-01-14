@@ -33,9 +33,14 @@
                         <label for="{{ form.campo.id_for_label }}" class="form-label">Campo *</label>
                         {{ form.campo }}
                         {% if form.campo.errors %}
-                            <div class="text-danger small">{{ form.campo.errors }}</div>
+                        <div class="text-danger small">{{ form.campo.errors }}</div>
                         {% endif %}
-                        <div class="form-text">Selecciona primero un productor para ver sus campos</div>
+                        <div class="form-text" id="campo-help-text">
+                            Selecciona primero un productor para ver sus campos
+                        </div>
+                        <div class="alert alert-info mt-2" id="creando-campo" style="display: none;">
+                            <small><i class="fas fa-spinner fa-spin"></i> Creando campo automáticamente...</small>
+                        </div>
                     </div>
 
                     <div class="row">
@@ -102,6 +107,22 @@
                                 <p class="text-muted">No hay imágenes predefinidas cargadas.</p>
                             </div>
                             {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Vista previa de imagen seleccionada -->
+                    <div id="imagen-seleccionada-container" class="mb-3" style="display: none;">
+                            <label class="form-label">Imagen Seleccionada:</label>
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <img id="imagen-seleccionada-preview" src="" alt="Imagen seleccionada" 
+                                     class="img-fluid mb-2" style="max-height: 150px;">
+                                <p id="imagen-seleccionada-nombre" class="mb-0"></p>
+                                <button type="button" class="btn btn-sm btn-outline-danger mt-2" 
+                                        onclick="deseleccionarImagen()">
+                                    Quitar selección
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -233,14 +254,224 @@
     <option value="">---------</option>
 </template>
 
-<style>
-.form-control:required {
-    border-left: 3px solid #0A2E5A;
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productorSelect = document.getElementById('id_productor');
+    const campoSelect = document.getElementById('id_campo');
+    const campoHelpText = document.getElementById('campo-help-text');
+    const creandoCampoAlert = document.getElementById('creando-campo');
+
+    // ==============================
+    // CARGA DINÁMICA DE CAMPOS
+    // ==============================
+    if (productorSelect && campoSelect) {
+        productorSelect.addEventListener('change', function() {
+            const productorId = this.value;
+
+            if (!productorId) {
+                campoSelect.innerHTML = '<option value="">Seleccione un productor primero</option>';
+                campoSelect.disabled = true;
+                if (campoHelpText) {
+                    campoHelpText.textContent = 'Selecciona primero un productor para ver sus campos';
+                }
+                return;
+            }
+
+            // Loading
+            campoSelect.innerHTML = '<option value="">Cargando campos...</option>';
+            campoSelect.disabled = true;
+            if (campoHelpText) {
+                campoHelpText.textContent = 'Cargando campos...';
+            }
+            if (creandoCampoAlert) {
+                creandoCampoAlert.style.display = 'none';
+            }
+
+            fetch(`/ajax/campos/${productorId}/`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Error en la respuesta del servidor');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    campoSelect.innerHTML = '<option value="">---------</option>';
+
+                    if (!data || data.length === 0) {
+                        campoSelect.innerHTML = '<option value="">No hay campos registrados</option>';
+                        if (campoHelpText) {
+                            campoHelpText.textContent = 'No hay campos registrados para este productor';
+                        }
+                        campoSelect.disabled = true;
+                        return;
+                    }
+
+                    data.forEach(campo => {
+                        if (campo.error) {
+                            throw new Error(campo.error);
+                        }
+
+                        const option = document.createElement('option');
+                        option.value = campo.id;
+                        option.textContent = campo.distrito
+                            ? `${campo.nombre} (${campo.distrito})`
+                            : campo.nombre;
+                        campoSelect.appendChild(option);
+                    });
+
+                    campoSelect.disabled = false;
+                    if (campoHelpText) {
+                        campoHelpText.textContent = `Se encontraron ${data.length} campo(s)`;
+                    }
+
+                    // Si hay uno solo → autoseleccionar
+                    if (data.length === 1) {
+                        campoSelect.value = data[0].id;
+
+                        if (data[0].creado_automaticamente && creandoCampoAlert) {
+                            creandoCampoAlert.innerHTML =
+                                '<small><i class="fas fa-check"></i> Campo creado automáticamente basado en los datos del productor</small>';
+                            creandoCampoAlert.className = 'alert alert-success mt-2';
+                            creandoCampoAlert.style.display = 'block';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    campoSelect.innerHTML = '<option value="">Error al cargar campos</option>';
+                    campoSelect.disabled = false;
+                    if (campoHelpText) {
+                        campoHelpText.textContent = `Error: ${error.message}`;
+                    }
+                });
+        });
+
+        // Para edición
+        if (productorSelect.value) {
+            productorSelect.dispatchEvent(new Event('change'));
+        }
+    }
+
+    // ==============================
+    // IMÁGENES PREDEFINIDAS
+    // ==============================
+    cargarImagenesPredefinidas();
+});
+
+// ==============================
+// GALERÍA DE IMÁGENES
+// ==============================
+function cargarImagenesPredefinidas() {
+    const galeriaMarcas = document.getElementById('galeria-marcas');
+    if (!galeriaMarcas) return;
+
+    fetch('/ajax/imagenes-marcas/')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error al cargar imágenes');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.length > 0) {
+                galeriaMarcas.innerHTML = '';
+                data.forEach(imagen => {
+                    const col = document.createElement('div');
+                    col.className = 'col-4 col-sm-3 mb-2';
+                    col.innerHTML = `
+                        <div class="card marca-predefinida h-100"
+                             onclick="seleccionarImagenMarca(this, ${imagen.id}, '${imagen.nombre.replace(/'/g, "\\'")}', '${imagen.imagen_url || imagen.imagen}')"
+                             style="cursor: pointer;">
+                            <img src="${imagen.imagen_url || imagen.imagen}"
+                                 class="card-img-top"
+                                 alt="${imagen.nombre}"
+                                 style="height: 80px; object-fit: cover;">
+                            <div class="card-body p-1 text-center">
+                                <small class="card-text d-block">${imagen.nombre}</small>
+                                <small class="text-muted">${imagen.tipo_marca}</small>
+                            </div>
+                        </div>
+                    `;
+                    galeriaMarcas.appendChild(col);
+                });
+            } else {
+                galeriaMarcas.innerHTML =
+                    '<div class="col-12"><p class="text-muted">No hay imágenes predefinidas cargadas.</p></div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando imágenes:', error);
+            galeriaMarcas.innerHTML =
+                '<div class="col-12"><p class="text-muted">Error al cargar imágenes</p></div>';
+        });
 }
 
+// ==============================
+// SELECCIÓN DE IMAGEN
+// ==============================
+function seleccionarImagenMarca(elemento, imagenId, nombreMarca, imagenUrl) {
+    document.querySelectorAll('.marca-predefinida').forEach(card => {
+        card.classList.remove('selected', 'border-primary', 'border-2');
+        card.classList.add('border-light');
+    });
+
+    elemento.classList.remove('border-light');
+    elemento.classList.add('selected', 'border-primary', 'border-2');
+
+    let hiddenInput = document.getElementById('imagen_predefinida_id');
+    if (!hiddenInput) {
+        hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'imagen_predefinida_id';
+        hiddenInput.id = 'imagen_predefinida_id';
+        document.querySelector('form').appendChild(hiddenInput);
+    }
+    hiddenInput.value = imagenId;
+
+    mostrarImagenSeleccionada(imagenUrl, nombreMarca);
+}
+
+// ==============================
+// PREVIEW IMAGEN SELECCIONADA
+// ==============================
+function mostrarImagenSeleccionada(imagenUrl, nombre) {
+    const container = document.getElementById('imagen-seleccionada-container');
+    const preview = document.getElementById('imagen-seleccionada-preview');
+    const nombreElem = document.getElementById('imagen-seleccionada-nombre');
+
+    if (!container || !preview || !nombreElem) return;
+
+    if (imagenUrl) {
+        preview.src = imagenUrl;
+        nombreElem.textContent = nombre;
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+// ==============================
+// DESELECCIONAR IMAGEN
+// ==============================
+function deseleccionarImagen() {
+    document.querySelectorAll('.marca-predefinida').forEach(card => {
+        card.classList.remove('selected', 'border-primary', 'border-2');
+        card.classList.add('border-light');
+    });
+
+    const hiddenInput = document.getElementById('imagen_predefinida_id');
+    if (hiddenInput) hiddenInput.value = '';
+
+    mostrarImagenSeleccionada(null, null);
+}
+</script>
+
+
+<style>
 .marca-predefinida {
     cursor: pointer;
-    transition: all 0.2s;
+    transition: transform 0.2s;
+    border: 2px solid #dee2e6;
 }
 
 .marca-predefinida:hover {
@@ -249,168 +480,27 @@
 }
 
 .marca-predefinida.selected {
-    border: 2px solid #0A2E5A;
-    background-color: #f8f9fa;
+    border-color: #0A2E5A !important;
+    background-color: rgba(10, 46, 90, 0.05);
+}
+
+.form-control:required {
+    border-left: 3px solid #0A2E5A;
 }
 
 .small-input {
     max-width: 100px;
 }
+
+/* Mejora para selects */
+select.form-control {
+    cursor: pointer;
+}
+
+/* Estado de loading para campos */
+select:disabled {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+}
 </style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-
-    /* ===============================
-       CARGA DE CAMPOS POR PRODUCTOR
-    =============================== */
-
-    const productorSelect = document.getElementById('id_productor');
-    const campoSelect = document.getElementById('id_campo');
-
-    function cargarCampos() {
-        const productorId = productorSelect.value;
-
-        if (!campoSelect) return;
-
-        campoSelect.innerHTML = '<option value="">Cargando...</option>';
-
-        if (productorId) {
-
-            // 👉 Elegí UNA de estas dos según tu backend
-            // ------------------------------------------------
-
-            // OPCIÓN 1: si tu endpoint devuelve HTML
-            fetch(`/cargar-campos/?productor_id=${productorId}`)
-                .then(response => response.text())
-                .then(html => {
-                    campoSelect.innerHTML = html;
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    campoSelect.innerHTML = '<option value="">Error al cargar campos</option>';
-                });
-
-            // OPCIÓN 2: si tu endpoint devuelve JSON (descomentá si usás este)
-            /*
-            fetch(`/ajax/campos/${productorId}/`)
-                .then(response => response.json())
-                .then(data => {
-                    campoSelect.innerHTML = '<option value="">---------</option>';
-                    data.forEach(campo => {
-                        const option = document.createElement('option');
-                        option.value = campo.id;
-                        option.textContent = `${campo.nombre} - ${campo.distrito}`;
-                        campoSelect.appendChild(option);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    campoSelect.innerHTML = '<option value="">Error al cargar campos</option>';
-                });
-            */
-
-        } else {
-            campoSelect.innerHTML = '<option value="">---------</option>';
-        }
-    }
-
-    if (productorSelect) {
-        productorSelect.addEventListener('change', cargarCampos);
-
-        // Si ya viene seleccionado
-        if (productorSelect.value) {
-            cargarCampos();
-        }
-    }
-
-    /* ===============================
-       GALERÍA DE MARCAS (AJAX)
-    =============================== */
-
-    const galeriaMarcas = document.getElementById('galeria-marcas');
-
-    if (galeriaMarcas) {
-        fetch('/ajax/imagenes-marcas/')
-            .then(response => response.json())
-            .then(imagenes => {
-                galeriaMarcas.innerHTML = '';
-
-                imagenes.forEach(imagen => {
-                    const col = document.createElement('div');
-                    col.className = 'col-4 col-sm-3 mb-2';
-                    col.innerHTML = `
-                        <div class="card marca-predefinida"
-                             data-imagen-id="${imagen.id}"
-                             data-imagen-url="${imagen.imagen_url}"
-                             data-imagen-nombre="${imagen.nombre}">
-                            <img src="${imagen.imagen_url}"
-                                 class="card-img-top"
-                                 alt="${imagen.nombre}"
-                                 style="height: 80px; object-fit: cover;">
-                            <div class="card-body p-1">
-                                <small class="card-text d-block text-truncate">${imagen.nombre}</small>
-                                <small class="text-muted">${imagen.tipo_marca}</small>
-                            </div>
-                        </div>
-                    `;
-                    galeriaMarcas.appendChild(col);
-                });
-            })
-            .catch(error => console.error('Error cargando imágenes:', error));
-    }
-
-    /* ===============================
-       SELECCIÓN DE MARCA
-    =============================== */
-
-    if (galeriaMarcas) {
-        galeriaMarcas.addEventListener('click', function (e) {
-            const card = e.target.closest('.marca-predefinida');
-            if (!card) return;
-
-            // Quitar selección previa
-            document.querySelectorAll('.marca-predefinida').forEach(el => {
-                el.classList.remove('selected');
-            });
-
-            // Seleccionar actual
-            card.classList.add('selected');
-
-            const imagenId = card.dataset.imagenId;
-            const nombreMarca = card.dataset.imagenNombre;
-
-            // Campo oculto
-            const inputImagen = document.getElementById('id_imagen_marca');
-            if (inputImagen) {
-                inputImagen.value = imagenId;
-            }
-
-            alert(`Marca "${nombreMarca}" seleccionada. Recuerda guardar el formulario.`);
-        });
-    }
-
-    /* ===============================
-       INPUTS NUMÉRICOS CHICOS
-    =============================== */
-
-    const camposNumericos = [
-        'id_vacuno',
-        'id_caballar',
-        'id_mular',
-        'id_asnal',
-        'id_ovino',
-        'id_cabrio'
-    ];
-
-    camposNumericos.forEach(id => {
-        const campo = document.getElementById(id);
-        if (campo) {
-            campo.classList.add('small-input');
-        }
-    });
-
-});
-
-</script>
 {% endblock %}

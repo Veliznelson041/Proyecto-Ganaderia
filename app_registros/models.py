@@ -103,6 +103,34 @@ class TipoSenal(models.Model):
 # ----------------------------------------
 # MARCA Y SEÑAL (Modelo principal para registros)
 # ----------------------------------------
+
+
+class ImagenMarcaPredefinida(models.Model):
+    TIPO_MARCA_CHOICES = [
+        ('FLANCO', 'Flanco'),
+        ('ANCA', 'Anca'),
+        ('COSTILLAR', 'Costillar'),
+        ('PALETA', 'Paleta'),
+        ('CUELLO', 'Cuello'),
+        ('MEJILLA', 'Mejilla'),
+        ('OTRO', 'Otro'),
+    ]
+    
+    nombre = models.CharField(max_length=100)
+    imagen = models.ImageField(upload_to='marcas/predefinidas/')
+    tipo_marca = models.CharField(max_length=20, choices=TIPO_MARCA_CHOICES, default='FLANCO')
+    descripcion = models.TextField(blank=True)
+    activa = models.BooleanField(default=True)
+    
+    class Meta:
+        verbose_name = "Imagen de Marca Predefinida"
+        verbose_name_plural = "Imágenes de Marcas Predefinidas"
+    
+    def __str__(self):
+        return f"{self.nombre} ({self.get_tipo_marca_display()})"
+
+
+
 class MarcaSenal(models.Model):  # Sin ñ
     TIPO_TRAMITE_CHOICES = [
         ('NUEVA', 'Marca nueva'),
@@ -132,6 +160,7 @@ class MarcaSenal(models.Model):  # Sin ñ
     imagen_marca = models.ImageField(upload_to='marcas/', blank=True, null=True)
     tipo_senal = models.ForeignKey(TipoSenal, on_delete=models.SET_NULL, null=True, blank=True)
     descripcion_senal = models.TextField(blank=True, verbose_name="Descripción de la señal")
+    imagen_predefinida = models.ForeignKey(ImagenMarcaPredefinida, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Imagen predefinida")
     
     # Ganado
     vacuno = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
@@ -169,31 +198,6 @@ class MarcaSenal(models.Model):  # Sin ñ
             self.asnal, self.ovino, self.cabrio
         ])
     
-
-
-class ImagenMarcaPredefinida(models.Model):
-    TIPO_MARCA_CHOICES = [
-        ('FLANCO', 'Flanco'),
-        ('ANCA', 'Anca'),
-        ('COSTILLAR', 'Costillar'),
-        ('PALETA', 'Paleta'),
-        ('CUELLO', 'Cuello'),
-        ('MEJILLA', 'Mejilla'),
-        ('OTRO', 'Otro'),
-    ]
-    
-    nombre = models.CharField(max_length=100)
-    imagen = models.ImageField(upload_to='marcas/predefinidas/')
-    tipo_marca = models.CharField(max_length=20, choices=TIPO_MARCA_CHOICES, default='FLANCO')
-    descripcion = models.TextField(blank=True)
-    activa = models.BooleanField(default=True)
-    
-    class Meta:
-        verbose_name = "Imagen de Marca Predefinida"
-        verbose_name_plural = "Imágenes de Marcas Predefinidas"
-    
-    def __str__(self):
-        return f"{self.nombre} ({self.get_tipo_marca_display()})"
 
 
 # ----------------------------------------

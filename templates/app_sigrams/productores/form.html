@@ -12,6 +12,45 @@
     </div>
 </div>
 
+<!-- Mostrar mensajes de Django -->
+{% if messages %}
+<div class="mb-4">
+    {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Mostrar errores del formulario GENERALES -->
+{% if form.errors and not form.non_field_errors %}
+<div class="alert alert-danger">
+    <h5 class="alert-heading">Por favor corrija los siguientes errores:</h5>
+    <ul class="mb-0">
+        {% for field in form %}
+            {% if field.errors %}
+                {% for error in field.errors %}
+                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if form.non_field_errors %}
+<div class="alert alert-danger">
+    <h5 class="alert-heading">Errores generales:</h5>
+    <ul class="mb-0">
+        {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 <div class="card">
     <div class="card-body">
         <form method="post" id="productorForm">
@@ -97,10 +136,24 @@
                         <div class="col-md-6 mb-3">
                             <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre *</label>
                             {{ form.nombre }}
+                            {% if form.nombre.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.nombre.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="{{ form.apellido.id_for_label }}" class="form-label">Apellido *</label>
                             {{ form.apellido }}
+                            {% if form.apellido.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.apellido.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                     
@@ -108,10 +161,24 @@
                         <div class="col-md-6 mb-3">
                             <label for="{{ form.dni.id_for_label }}" class="form-label">DNI *</label>
                             {{ form.dni }}
+                            {% if form.dni.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.dni.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="{{ form.cuit.id_for_label }}" class="form-label">CUIT *</label>
                             {{ form.cuit }}
+                            {% if form.cuit.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.cuit.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -123,16 +190,37 @@
                     <div class="mb-3">
                         <label for="{{ form.calle.id_for_label }}" class="form-label">Calle</label>
                         {{ form.calle }}
+                        {% if form.calle.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.calle.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="{{ form.localidad.id_for_label }}" class="form-label">Localidad</label>
+                            <label for="{{ form.localidad.id_for_label }}" class="form-label">Localidad *</label>
                             {{ form.localidad }}
+                            {% if form.localidad.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.localidad.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="{{ form.municipio.id_for_label }}" class="form-label">Municipio</label>
                             {{ form.municipio }}
+                            {% if form.municipio.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.municipio.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -140,71 +228,146 @@
                         <div class="col-md-6 mb-3">
                             <label for="{{ form.departamento.id_for_label }}" class="form-label">Departamento</label>
                             {{ form.departamento }}
+                            {% if form.departamento.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.departamento.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="{{ form.provincia.id_for_label }}" class="form-label">Provincia</label>
                             {{ form.provincia }}
+                            {% if form.provincia.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.provincia.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label for="{{ form.campo.id_for_label }}" class="form-label">Nombre del Campo</label>
                         {{ form.campo }}
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="{{ form.area_hectareas.id_for_label }}" class="form-label">Área (hectáreas)</label>
-                        {{ form.area_hectareas }}
-                    </div>
-                </div>
-            </div>
-
-            <div class="row mt-3">
-                <div class="col-md-6">
-                    <h5 class="text-catamarca mb-3">Contacto</h5>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.telefono.id_for_label }}" class="form-label">Teléfono</label>
-                            {{ form.telefono }}
+                        {% if form.campo.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.campo.errors %}
+                            <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
-                            {{ form.email }}
+
+                        <div class="mb-3">
+                            <label for="{{ form.area_hectareas.id_for_label }}" class="form-label">Área (hectáreas)</label>
+                            {{ form.area_hectareas }}
+                            {% if form.area_hectareas.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.area_hectareas.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
 
-                <div class="col-md-6">
-                    <h5 class="text-catamarca mb-3">Información Adicional</h5>
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.estado.id_for_label }}" class="form-label">Estado *</label>
-                        {{ form.estado }}
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h5 class="text-catamarca mb-3">Contacto</h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.telefono.id_for_label }}" class="form-label">Teléfono</label>
+                                {{ form.telefono }}
+                                {% if form.telefono.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.telefono.errors %}
+                                    <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+                                {{ form.email }}
+                                {% if form.email.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.email.errors %}
+                                    <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.observaciones.id_for_label }}" class="form-label">Observaciones</label>
-                        {{ form.observaciones }}
+
+                    <div class="col-md-6">
+                        <h5 class="text-catamarca mb-3">Información Adicional</h5>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.estado.id_for_label }}" class="form-label">Estado *</label>
+                            {{ form.estado }}
+                            {% if form.estado.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.estado.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.observaciones.id_for_label }}" class="form-label">Observaciones</label>
+                            {{ form.observaciones }}
+                            {% if form.observaciones.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.observaciones.errors %}
+                                <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Campos de coordenadas (ocultos) -->
-            <div style="display: none;">
-                {{ form.latitud }}
-                {{ form.longitud }}
-            </div>
-            
-            <div class="mt-4 border-top pt-3">
-                <button type="submit" class="btn btn-catamarca btn-lg me-2">
-                    💾 Guardar Productor
-                </button>
-                <a href="{% url 'lista_productores' %}" class="btn btn-outline-secondary">
-                    Cancelar
-                </a>
-            </div>
-        </form>
+                
+                <!-- Campos de coordenadas (ocultos) -->
+                <div style="display: none;">
+                    <div class="mb-3">
+                        {{ form.latitud }}
+                        {% if form.latitud.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.latitud.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.longitud }}
+                        {% if form.longitud.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.longitud.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="mt-4 border-top pt-3">
+                    <button type="submit" class="btn btn-catamarca btn-lg me-2">
+                        💾 Guardar Productor
+                    </button>
+                    <a href="{% url 'lista_productores' %}" class="btn btn-outline-secondary">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 

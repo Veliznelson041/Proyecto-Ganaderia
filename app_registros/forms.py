@@ -4,170 +4,211 @@ import re
 from django.core.validators import RegexValidator
 
 
+from django import forms
+from django.core.validators import RegexValidator
+from .models import Productor
+from .validators import (
+    DNIValidator, CUITValidator, NombreApellidoValidator,
+    TelefonoValidator, EmailValidator
+)
+import re
+
+
 class ProductorForm(forms.ModelForm):
-    # Validaciones personalizadas
+
+    # =========================
+    # CAMPOS CON VALIDADORES
+    # =========================
     dni = forms.CharField(
         max_length=8,
-        validators=[
-            RegexValidator(
-                regex=r'^\d+$',
-                message='El DNI debe contener solo números',
-                code='invalid_dni'
-            )
-        ],
-        widget=forms.TextInput(attrs={'class': 'form-control', 'required': 'required'})
+        validators=[DNIValidator()],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'required': 'required',
+            'pattern': r'\d{7,8}',
+            'title': 'DNI: 7 u 8 números sin puntos ni espacios',
+            'placeholder': '12345678'
+        })
     )
-    
+
     cuit = forms.CharField(
         required=False,
-        max_length=11,
-        validators=[
-            RegexValidator(
-                regex=r'^\d{2}-\d{8}-\d{1}$',
-                message='El CUIT debe tener el formato: 00-00000000-0',
-                code='invalid_cuit'
-            )
-        ],
-        widget=forms.TextInput(attrs={'class': 'form-control'})
+        validators=[CUITValidator()],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'pattern': r'\d{2}-\d{8}-\d{1}',
+            'title': 'Formato: 00-00000000-0',
+            'placeholder': '20-12345678-9'
+        })
     )
-    
+
+    nombre = forms.CharField(
+        validators=[NombreApellidoValidator()],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'required': 'required',
+            'pattern': r'[A-Za-záéíóúÁÉÍÓÚñÑ\s]+',
+            'title': 'Solo letras y espacios',
+            'placeholder': 'Juan'
+        })
+    )
+
+    apellido = forms.CharField(
+        validators=[NombreApellidoValidator()],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'required': 'required',
+            'pattern': r'[A-Za-záéíóúÁÉÍÓÚñÑ\s]+',
+            'title': 'Solo letras y espacios',
+            'placeholder': 'Pérez'
+        })
+    )
+
     telefono = forms.CharField(
         required=False,
         max_length=80,
-        validators=[
-            RegexValidator(
-                regex=r'^[\d\s\-\+\(\)]+$',
-                message='El teléfono solo puede contener números, espacios, y los caracteres: - + ( )',
-                code='invalid_phone'
-            )
-        ],
-        widget=forms.TextInput(attrs={'class': 'form-control'})
+        validators=[TelefonoValidator()],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'pattern': r'[\d\s\-\+\(\)]+',
+            'title': 'Ej: 3511234567, (351) 123-4567'
+        })
     )
-    
+
     email = forms.EmailField(
         required=False,
-        widget=forms.EmailInput(attrs={'class': 'form-control'})
+        validators=[EmailValidator()],
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'usuario@ejemplo.com'
+        })
     )
-    
+
+    area_hectareas = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_value=1_000_000,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'step': '0.01',
+            'min': '0',
+            'placeholder': '0.00'
+        })
+    )
+
+    # =========================
+    # META
+    # =========================
     class Meta:
         model = Productor
         fields = [
             'nombre', 'apellido', 'dni', 'cuit', 'calle', 'campo',
             'localidad', 'municipio', 'departamento', 'provincia',
-            'telefono', 'email', 'latitud', 'longitud', 'area_hectareas',
-            'estado', 'observaciones'
+            'telefono', 'email', 'latitud', 'longitud',
+            'area_hectareas', 'estado', 'observaciones'
         ]
         widgets = {
-            'nombre': forms.TextInput(attrs={
-                'class': 'form-control', 
-                'required': 'required',
-                'pattern': '[A-Za-záéíóúÁÉÍÓÚñÑ\\s]+',
-                'title': 'Solo se permiten letras y espacios'
-            }),
-            'apellido': forms.TextInput(attrs={
-                'class': 'form-control', 
-                'required': 'required',
-                'pattern': '[A-Za-záéíóúÁÉÍÓÚñÑ\\s]+',
-                'title': 'Solo se permiten letras y espacios'
-            }),
             'calle': forms.TextInput(attrs={'class': 'form-control'}),
             'campo': forms.TextInput(attrs={'class': 'form-control'}),
             'localidad': forms.TextInput(attrs={
-                'class': 'form-control', 
-                'required': 'required',
-                'pattern': '[A-Za-záéíóúÁÉÍÓÚñÑ\\s]+',
-                'title': 'Solo se permiten letras y espacios'
+                'class': 'form-control',
+                'required': 'required'
             }),
             'municipio': forms.TextInput(attrs={'class': 'form-control'}),
             'departamento': forms.TextInput(attrs={'class': 'form-control'}),
-            'provincia': forms.TextInput(attrs={'class': 'form-control'}),
+            'provincia': forms.TextInput(attrs={
+                'class': 'form-control',
+                'value': 'Catamarca',
+                'readonly': 'readonly'
+            }),
             'latitud': forms.NumberInput(attrs={
-                'class': 'form-control', 
+                'class': 'form-control',
                 'step': '0.00000001',
                 'required': 'required',
                 'readonly': 'readonly'
             }),
             'longitud': forms.NumberInput(attrs={
-                'class': 'form-control', 
+                'class': 'form-control',
                 'step': '0.00000001',
                 'required': 'required',
                 'readonly': 'readonly'
             }),
-            'area_hectareas': forms.NumberInput(attrs={
+            'estado': forms.Select(attrs={
                 'class': 'form-control',
-                'step': '0.01',
-                'min': '0'
+                'required': 'required'
             }),
-            'estado': forms.Select(attrs={'class': 'form-control', 'required': 'required'}),
-            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'observaciones': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Observaciones adicionales...'
+            }),
         }
-    
+
+    # =========================
+    # INIT
+    # =========================
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Hacer los campos obligatorios
-        self.fields['nombre'].required = True
-        self.fields['apellido'].required = True
-        self.fields['dni'].required = True
-        self.fields['cuit'].required = True
-        """ self.fields['domicilio'].required = True """
-        """ self.fields['distrito'].required = True """
-        self.fields['localidad'].required = True
-        self.fields['latitud'].required = True
-        self.fields['longitud'].required = True
-        self.fields['estado'].required = True
 
+        # Asegurar clase CSS en todos los campos
+        for field in self.fields.values():
+            field.widget.attrs.setdefault('class', 'form-control')
+
+    # =========================
+    # LIMPIEZAS
+    # =========================
     def clean_nombre(self):
         nombre = self.cleaned_data.get('nombre')
-        if nombre:
-            # Validar que solo contenga letras y espacios
-            if not re.match(r'^[A-Za-záéíóúÁÉÍÓÚñÑ\s]+$', nombre):
-                raise forms.ValidationError('El nombre solo puede contener letras y espacios.')
-            # Capitalizar nombre
-            return nombre.title()
-        return nombre
-    
+        return nombre.title() if nombre else nombre
+
     def clean_apellido(self):
         apellido = self.cleaned_data.get('apellido')
-        if apellido:
-            # Validar que solo contenga letras y espacios
-            if not re.match(r'^[A-Za-záéíóúÁÉÍÓÚñÑ\s]+$', apellido):
-                raise forms.ValidationError('El apellido solo puede contener letras y espacios.')
-            # Capitalizar apellido
-            return apellido.title()
-        return apellido
-    
+        return apellido.title() if apellido else apellido
+
     def clean_dni(self):
         dni = self.cleaned_data.get('dni')
+
         if dni:
-            # Verificar que no exista otro productor con el mismo DNI (excepto si estamos editando)
+            dni_limpio = re.sub(r'[^\d]', '', str(dni))
+
+            query = Productor.objects.filter(dni__icontains=dni_limpio)
             if self.instance.pk:
-                if Productor.objects.filter(dni=dni).exclude(pk=self.instance.pk).exists():
-                    raise forms.ValidationError('Ya existe un productor con este DNI.')
-            else:
-                if Productor.objects.filter(dni=dni).exists():
-                    raise forms.ValidationError('Ya existe un productor con este DNI.')
+                query = query.exclude(pk=self.instance.pk)
+
+            if query.exists():
+                raise forms.ValidationError(
+                    f'Ya existe un productor con DNI {dni_limpio}.',
+                    code='duplicate_dni'
+                )
+
+            return dni_limpio
+
         return dni
-    
+
     def clean_telefono(self):
         telefono = self.cleaned_data.get('telefono')
         if telefono:
-            # Limpiar espacios extras
-            telefono = ' '.join(telefono.split())
+            return ' '.join(telefono.split())
         return telefono
-    
+
     def clean(self):
         cleaned_data = super().clean()
         latitud = cleaned_data.get('latitud')
         longitud = cleaned_data.get('longitud')
-        
-        # Validar que se hayan seleccionado coordenadas
-        if not latitud or not longitud:
-            raise forms.ValidationError('Debe seleccionar una ubicación en el mapa.')
-        
-        return cleaned_data
-    
 
-# ... (los demás forms permanecen igual)
+        if not latitud or not longitud:
+            raise forms.ValidationError(
+                'Debe seleccionar una ubicación en el mapa.'
+            )
+
+        # Validación geográfica Argentina
+        if latitud < -55 or latitud > -21 or longitud < -75 or longitud > -53:
+            raise forms.ValidationError(
+                'Las coordenadas deben estar dentro del territorio argentino.'
+            )
+
+        return cleaned_data
+
 
 class CampoForm(forms.ModelForm):
     class Meta:
@@ -184,55 +225,142 @@ class CampoForm(forms.ModelForm):
         }
 
 
+from django import forms
+from datetime import date
+
+from .models import (
+    MarcaSenal, Campo, TipoSenal, ImagenMarcaPredefinida
+)
+from .validators import NumeroOrdenValidator
+
+
 class MarcaSenalForm(forms.ModelForm):
-    imagen_predefinida = forms.ModelChoiceField(
-        queryset=ImagenMarcaPredefinida.objects.filter(activa=True),
-        required=False,
-        label="Seleccionar marca predefinida",
-        widget=forms.Select(attrs={'class': 'form-control'})
+
+    numero_orden = forms.IntegerField(
+        validators=[NumeroOrdenValidator(MarcaSenal)],
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'required': 'required',
+            'min': '1',
+            'placeholder': '123'
+        })
     )
+
+    fecha_inscripcion = forms.DateField(
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date',
+            'required': 'required',
+            'max': date.today().isoformat()
+        })
+    )
+
+    fecha_vencimiento = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date',
+            'min': date.today().isoformat()
+        })
+    )
+
+    descripcion_marca = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'required': 'required',
+            'placeholder': 'Describa la marca detalladamente...'
+        })
+    )
+
+    descripcion_senal = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Describa la señal si aplica...'
+        })
+    )
+
+    valor_sellado = forms.DecimalField(
+        required=False,
+        min_value=0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'step': '0.01',
+            'min': '0',
+            'placeholder': '0.00'
+        })
+    )
+
+    # Campos de ganado
+    def ganado_field():
+        return forms.IntegerField(
+            required=False,
+            min_value=0,
+            max_value=100000,
+            widget=forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm small-input',
+                'style': 'max-width: 100px;',
+                'value': '0',
+                'min': '0'
+            })
+        )
+
+    vacuno = ganado_field()
+    caballar = ganado_field()
+    mular = ganado_field()
+    asnal = ganado_field()
+    ovino = ganado_field()
+    cabrio = ganado_field()
 
     class Meta:
         model = MarcaSenal
         fields = [
-            'productor', 'campo', 'tipo_tramite', 'numero_orden', 'fecha_inscripcion',
-            'fecha_vencimiento', 'descripcion_marca', 'imagen_marca', 'imagen_predefinida',
-            'tipo_senal', 'descripcion_senal', 'vacuno', 'caballar', 'mular', 'asnal',
-            'ovino', 'cabrio', 'valor_sellado', 'estado', 'observaciones',
+            'productor', 'campo', 'tipo_tramite', 'numero_orden',
+            'fecha_inscripcion', 'fecha_vencimiento',
+            'descripcion_marca', 'imagen_marca', 'imagen_predefinida',
+            'tipo_senal', 'descripcion_senal',
+            'vacuno', 'caballar', 'mular', 'asnal', 'ovino', 'cabrio',
+            'valor_sellado', 'estado', 'observaciones',
             'imagen_carnet_frente', 'imagen_carnet_dorso'
         ]
         widgets = {
             'productor': forms.Select(attrs={'class': 'form-control', 'required': 'required'}),
             'campo': forms.Select(attrs={'class': 'form-control', 'required': 'required'}),
             'tipo_tramite': forms.Select(attrs={'class': 'form-control', 'required': 'required'}),
-            'numero_orden': forms.NumberInput(attrs={'class': 'form-control', 'required': 'required'}),
-            'fecha_inscripcion': forms.DateInput(attrs={'class': 'form-control', 'type': 'date', 'required': 'required'}),
-            'fecha_vencimiento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'descripcion_marca': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'required': 'required'}),
-            'imagen_marca': forms.FileInput(attrs={'class': 'form-control'}),
             'tipo_senal': forms.Select(attrs={'class': 'form-control'}),
-            'descripcion_senal': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'vacuno': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
-            'caballar': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
-            'mular': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
-            'asnal': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
-            'ovino': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
-            'cabrio': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
-            'valor_sellado': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
             'estado': forms.Select(attrs={'class': 'form-control', 'required': 'required'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'imagen_carnet_frente': forms.FileInput(attrs={'class': 'form-control'}),
-            'imagen_carnet_dorso': forms.FileInput(attrs={'class': 'form-control'}),
+            'imagen_marca': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'imagen_carnet_frente': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'imagen_carnet_dorso': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'imagen_predefinida': forms.Select(attrs={
+                'class': 'form-control d-done',
+                'id': 'id_imagen_predefinida_form'
+            }),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Filtrar campos según el productor seleccionado
+        # Tipo señal
+        self.fields['tipo_senal'].queryset = TipoSenal.objects.all()
+        self.fields['tipo_senal'].empty_label = "Seleccione un tipo de señal"
+
+        # Imagen predefinida
+        self.fields['imagen_predefinida'].queryset = (
+            ImagenMarcaPredefinida.objects.filter(activa=True)
+        )
+        self.fields['imagen_predefinida'].required = False
+
+        # Filtrar campos por productor
         if 'productor' in self.data:
             try:
                 productor_id = int(self.data.get('productor'))
-                self.fields['campo'].queryset = Campo.objects.filter(productor_id=productor_id)
+                self.fields['campo'].queryset = Campo.objects.filter(
+                    productor_id=productor_id
+                )
             except (ValueError, TypeError):
                 self.fields['campo'].queryset = Campo.objects.none()
         elif self.instance.pk and self.instance.productor:
@@ -240,28 +368,44 @@ class MarcaSenalForm(forms.ModelForm):
         else:
             self.fields['campo'].queryset = Campo.objects.none()
 
-        # Ajustar tamaño visual de campos de ganado
-        for field in ['vacuno', 'caballar', 'mular', 'asnal', 'ovino', 'cabrio']:
-            self.fields[field].widget.attrs.update({'class': 'form-control form-control-sm'})
-
-    def clean_numero_orden(self):
-        numero_orden = self.cleaned_data.get('numero_orden')
-        if numero_orden:
-            if self.instance.pk:
-                if MarcaSenal.objects.filter(numero_orden=numero_orden).exclude(pk=self.instance.pk).exists():
-                    raise forms.ValidationError('Ya existe una marca/señal con este número de orden.')
-            else:
-                if MarcaSenal.objects.filter(numero_orden=numero_orden).exists():
-                    raise forms.ValidationError('Ya existe una marca/señal con este número de orden.')
-        return numero_orden
+        # Help text
+        self.fields['campo'].help_text = 'Primero seleccione un productor'
+        self.fields['valor_sellado'].help_text = 'Valor en pesos argentinos'
+        self.fields['descripcion_marca'].help_text = 'Mínimo 10 caracteres'
 
     def clean_fecha_vencimiento(self):
         fecha_inscripcion = self.cleaned_data.get('fecha_inscripcion')
         fecha_vencimiento = self.cleaned_data.get('fecha_vencimiento')
+
         if fecha_vencimiento and fecha_inscripcion:
             if fecha_vencimiento <= fecha_inscripcion:
-                raise forms.ValidationError('La fecha de vencimiento debe ser posterior a la fecha de inscripción.')
+                raise forms.ValidationError(
+                    'La fecha de vencimiento debe ser posterior a la fecha de inscripción.'
+                )
         return fecha_vencimiento
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        # Validar descripción mínima
+        descripcion = cleaned_data.get('descripcion_marca', '')
+        if len(descripcion.strip()) < 10:
+            self.add_error(
+                'descripcion_marca',
+                'La descripción debe tener al menos 10 caracteres.'
+            )
+
+        # Validar ganado mínimo
+        tipos = ['vacuno', 'caballar', 'mular', 'asnal', 'ovino', 'cabrio']
+        total = sum(cleaned_data.get(t, 0) or 0 for t in tipos)
+
+        if total <= 0:
+            raise forms.ValidationError(
+                'Debe especificar al menos un animal.'
+            )
+
+        return cleaned_data
+
 
 class SolicitudForm(forms.ModelForm):
     class Meta:

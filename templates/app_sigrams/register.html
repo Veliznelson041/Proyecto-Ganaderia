@@ -4,72 +4,230 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-        <div class="card shadow border-catamarca">
-            <div class="card-header bg-catamarca text-white text-center">
-                <h4 class="mb-0">👤 Registro de Usuario</h4>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-catamarca text-white">
+                <h4 class="mb-0">Registro de Usuario</h4>
             </div>
-            <div class="card-body p-4">
-                <form method="POST">
+            <div class="card-body">
+                <form method="post" id="registerForm">
                     {% csrf_token %}
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="first_name" class="form-label">Nombre</label>
-                            <input type="text" class="form-control" id="first_name" name="first_name" 
-                                   placeholder="Su nombre" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="last_name" class="form-label">Apellido</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" 
-                                   placeholder="Su apellido" required>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Usuario</label>
-                        <input type="text" class="form-control" id="username" name="username" 
-                               placeholder="Elija un nombre de usuario" required>
-                        <div class="form-text">Este será tu nombre de usuario para ingresar al sistema.</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" 
-                               placeholder="ejemplo@correo.com" required>
-                    </div>
                     
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="password" class="form-label">Contraseña</label>
-                            <input type="password" class="form-control" id="password" name="password" 
-                                   placeholder="Mínimo 8 caracteres" required minlength="8">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.username.id_for_label }}" class="form-label">
+                                    Nombre de usuario *
+                                </label>
+                                {{ form.username }}
+                                {% if form.username.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.username.errors %}
+                                    <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Letras, números y guiones bajos</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                                    Nombre *
+                                </label>
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.first_name.errors %}
+                                    <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Solo letras y espacios</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                                    Apellido *
+                                </label>
+                                {{ form.last_name }}
+                                {% if form.last_name.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.last_name.errors %}
+                                    <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Solo letras y espacios</div>
+                            </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="password2" class="form-label">Repetir Contraseña</label>
-                            <input type="password" class="form-control" id="password2" name="password2" 
-                                   placeholder="Repita la contraseña" required>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.email.id_for_label }}" class="form-label">
+                                    Email *
+                                </label>
+                                {{ form.email }}
+                                {% if form.email.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.email.errors %}
+                                    <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Ejemplo: usuario@dominio.com</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.password1.id_for_label }}" class="form-label">
+                                    Contraseña *
+                                </label>
+                                {{ form.password1 }}
+                                {% if form.password1.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.password1.errors %}
+                                    <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                {{ form.password1.help_text|safe }}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.password2.id_for_label }}" class="form-label">
+                                    Confirmar Contraseña *
+                                </label>
+                                {{ form.password2 }}
+                                {% if form.password2.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.password2.errors %}
+                                    <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     
-                    <button type="submit" class="btn btn-catamarca w-100 py-2">
-                        Crear Cuenta
-                    </button>
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-catamarca btn-lg w-100">
+                            📝 Registrar Cuenta
+                        </button>
+                    </div>
+                    
+                    <div class="mt-3 text-center">
+                        <p>¿Ya tienes cuenta? <a href="{% url 'login' %}">Inicia sesión aquí</a></p>
+                    </div>
                 </form>
-                
-                <div class="text-center mt-3">
-                    <p class="mb-0">¿Ya tenés cuenta? 
-                        <a href="{% url 'login' %}" class="text-catamarca">Iniciá sesión</a>
-                    </p>
-                </div>
             </div>
-        </div>
-        
-        <div class="text-center mt-3">
-            <small class="text-muted">
-                Al registrarte, aceptás los términos de uso del sistema.<br>
-                Dirección de Ganadería - Catamarca
-            </small>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('registerForm');
+    
+    // Validación en tiempo real
+    const inputs = form.querySelectorAll('input[required]');
+    inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            validateField(this);
+        });
+    });
+    
+    function validateField(field) {
+        const value = field.value.trim();
+        const fieldName = field.name;
+        
+        // Validaciones específicas por campo
+        switch(fieldName) {
+            case 'username':
+                if (!/^[A-Za-z0-9_]+$/.test(value)) {
+                    showError(field, 'Solo letras, números y guiones bajos');
+                } else {
+                    clearError(field);
+                }
+                break;
+                
+            case 'first_name':
+            case 'last_name':
+                if (!/^[A-Za-záéíóúÁÉÍÓÚñÑ\s]+$/.test(value)) {
+                    showError(field, 'Solo letras y espacios');
+                } else {
+                    clearError(field);
+                }
+                break;
+                
+            case 'email':
+                if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value)) {
+                    showError(field, 'Formato de email inválido');
+                } else {
+                    clearError(field);
+                }
+                break;
+                
+            case 'password1':
+                if (value.length < 8) {
+                    showError(field, 'Mínimo 8 caracteres');
+                } else if (!/[A-Z]/.test(value)) {
+                    showError(field, 'Falta una letra mayúscula');
+                } else if (!/[a-z]/.test(value)) {
+                    showError(field, 'Falta una letra minúscula');
+                } else if (!/[0-9]/.test(value)) {
+                    showError(field, 'Falta un número');
+                } else if (!/[!@#$%^&*(),.?":{}|<>]/.test(value)) {
+                    showError(field, 'Falta un carácter especial');
+                } else {
+                    clearError(field);
+                }
+                break;
+        }
+    }
+    
+    function showError(field, message) {
+        const formGroup = field.closest('.mb-3');
+        let errorDiv = formGroup.querySelector('.text-danger');
+        
+        if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.className = 'text-danger small mt-1';
+            formGroup.appendChild(errorDiv);
+        }
+        
+        errorDiv.textContent = message;
+        field.classList.add('is-invalid');
+    }
+    
+    function clearError(field) {
+        const formGroup = field.closest('.mb-3');
+        const errorDiv = formGroup.querySelector('.text-danger');
+        
+        if (errorDiv) {
+            errorDiv.remove();
+        }
+        
+        field.classList.remove('is-invalid');
+    }
+});
+</script>
+
+<style>
+.is-invalid {
+    border-color: #dc3545 !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.form-text {
+    font-size: 0.875em;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.text-danger {
+    font-size: 0.875em;
+}
+</style>
 {% endblock %}

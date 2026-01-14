@@ -8,59 +8,149 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        .bg-catamarca {
-            background-color: #0A2E5A !important;
-        }
-        .btn-catamarca {
-            background-color: #0A2E5A;
-            color: white;
-        }
-        .btn-catamarca:hover {
-            background-color: #1E6BA6;
-            color: white;
-        }
-        .text-catamarca {
-            color: #0A2E5A;
-        }
-        .border-catamarca {
-            border-color: #0A2E5A !important;
-        }
-        .sidebar {
-            background-color: #f8f9fa;
-            min-height: calc(100vh - 56px);
-        }
-        .navbar-brand {
-            font-weight: bold;
-        }
-        /* Estilos para el mapa */
-        #map {
-            height: 400px;
-            width: 100%;
-            border-radius: 8px;
-            border: 2px solid #0A2E5A;
-        }
-        .map-container {
-            position: relative;
-        }
-        .map-coordinates {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: white;
-            padding: 8px 12px;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            z-index: 1000;
-            font-size: 12px;
-        }
-        .search-container {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 1000;
-            width: 300px;
-        }
+/* ===============================
+   VARIABLES (identidad visual)
+================================ */
+    :root {
+        --catamarca-primary: #0A2E5A;
+        --catamarca-secondary: #1E6BA6;
+        --success-color: #28a745;
+        --danger-color: #dc3545;
+        --muted-color: #6c757d;
+    }
+
+/* ===============================
+   COLORES Y BOTONES
+================================ */
+    .bg-catamarca {
+        background-color: var(--catamarca-primary) !important;
+    }
+
+    .text-catamarca {
+        color: var(--catamarca-primary);
+    }
+
+    .border-catamarca {
+        border-color: var(--catamarca-primary) !important;
+    }
+
+    .btn-catamarca {
+        background-color: var(--catamarca-primary);
+        color: white;
+    }
+
+    .btn-catamarca:hover {
+        background-color: var(--catamarca-secondary);
+        color: white;
+    }
+
+/* ===============================
+   NAVBAR / SIDEBAR
+================================ */
+    .navbar-brand {
+        font-weight: bold;
+    }
+
+    .sidebar {
+        background-color: #f8f9fa;
+        min-height: calc(100vh - 56px);
+    }
+
+/* ===============================
+   MAPA
+================================ */
+    .map-container {
+        position: relative;
+    }
+
+    #map {
+        height: 400px;
+        width: 100%;
+        border-radius: 8px;
+        border: 2px solid var(--catamarca-primary);
+    }
+
+    .map-coordinates {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        z-index: 1000;
+        font-size: 12px;
+    }
+
+    .search-container {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 1000;
+        width: 300px;
+    }
+
+/* ===============================
+   VALIDACIONES DE FORMULARIOS
+================================ */
+    .field-errors {
+        color: var(--danger-color);
+        font-size: 0.875em;
+        margin-top: 0.25rem;
+    }
+
+    .form-control.is-invalid {
+        border-color: var(--danger-color);
+        padding-right: calc(1.5em + 0.75rem);
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right calc(0.375em + 0.1875rem) center;
+        background-size: calc(0.75em + 0.375rem);
+    }
+
+    .form-control.is-valid {
+        border-color: var(--success-color);
+        padding-right: calc(1.5em + 0.75rem);
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right calc(0.375em + 0.1875rem) center;
+        background-size: calc(0.75em + 0.375rem);
+    }
+
+/* ===============================
+   TEXTOS DE AYUDA
+================================ */
+    .help-text {
+        font-size: 0.875em;
+        color: var(--muted-color);
+        margin-top: 0.25rem;
+    }
+
+    .help-text ul {
+        margin-bottom: 0;
+        padding-left: 1.25rem;
+    }
+
+    .help-text li {
+        margin-bottom: 0.25rem;
+    }
+
+/* ===============================
+   ALERTAS
+================================ */
+    .alert.alert-error {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+
+    .alert.alert-success {
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
     </style>
+
 </head>
 <body class="bg-light">
     <!-- Barra de navegación -->

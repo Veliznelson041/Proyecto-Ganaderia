@@ -28,19 +28,66 @@ from django.http import HttpResponse
 
 
 # app_sigrams/views.py - Agregar estas funciones al inicio
+from django.http import JsonResponse
+import json
+
 def get_campos_por_productor(request, productor_id):
     """Obtener campos de un productor específico (para AJAX)"""
-    campos = Campo.objects.filter(productor_id=productor_id).values('id', 'nombre', 'distrito')
-    return JsonResponse(list(campos), safe=False)
-
+    try:
+        # Verificar si el productor existe
+        from app_registros.models import Productor, Campo
+        productor = Productor.objects.get(id=productor_id)
+        
+        # Obtener campos del productor
+        campos = Campo.objects.filter(productor_id=productor_id)
+        
+        if not campos.exists():
+            # Si no hay campos, crear uno automáticamente basado en los datos del productor
+            campo = Campo.objects.create(
+                nombre=productor.campo or f"Campo de {productor.nombre} {productor.apellido}",
+                productor=productor,
+                distrito=productor.localidad or "Sin especificar",
+                departamento=productor.departamento or "Sin especificar",
+                area_hectareas=productor.area_hectareas or 0,
+                latitud=productor.latitud,
+                longitud=productor.longitud
+            )
+            campos = Campo.objects.filter(productor_id=productor_id)
+        
+        # Preparar datos para JSON
+        data = []
+        for campo in campos:
+            data.append({
+                'id': campo.id,
+                'nombre': campo.nombre,
+                'distrito': campo.distrito or '',
+                'departamento': campo.departamento or ''
+            })
+        
+        return JsonResponse(data, safe=False)
+        
+    except Productor.DoesNotExist:
+        return JsonResponse([], safe=False)
+    except Exception as e:
+        print(f"Error en get_campos_por_productor: {str(e)}")
+        return JsonResponse([{'error': str(e)}], safe=False, status=500)
+    
 def get_imagenes_marcas(request):
     """Obtener imágenes predefinidas de marcas (para AJAX)"""
-    imagenes = ImagenMarcaPredefinida.objects.filter(activa=True).values('id', 'nombre', 'imagen', 'tipo_marca')
-    # Convertir URLs absolutas
-    for imagen in imagenes:
-        if imagen['imagen']:
-            imagen['imagen_url'] = request.build_absolute_uri(settings.MEDIA_URL + imagen['imagen'])
-    return JsonResponse(list(imagenes), safe=False)
+    try:
+        imagenes = ImagenMarcaPredefinida.objects.filter(activa=True)
+        data = []
+        for imagen in imagenes:
+            data.append({
+                'id': imagen.id,
+                'nombre': imagen.nombre,
+                'tipo_marca': imagen.get_tipo_marca_display(),
+                'imagen': imagen.imagen.url if imagen.imagen else '',
+                'imagen_url': request.build_absolute_uri(imagen.imagen.url) if imagen.imagen else ''
+            })
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
 
 
@@ -49,35 +96,51 @@ def get_imagenes_marcas(request):
 def home(request):
     """Vista principal del dashboard"""
     from app_registros.models import Productor, MarcaSenal, Solicitud, Campo
-    from django.db.models import Count, Q
+    from django.db.models import Count, Q, Sum
     from django.utils import timezone
     import datetime
+    import json
     
-    # Estadísticas básicas
+    hoy = timezone.now()
+    
+    # ========== ESTADÍSTICAS BÁSICAS ==========
     total_productores = Productor.objects.count()
     total_marcas = MarcaSenal.objects.filter(estado='VIGENTE').count()
     solicitudes_pendientes = Solicitud.objects.filter(estado='PENDIENTE').count()
     total_campos = Campo.objects.count()
     
-    # Trámites del mes actual
-    hoy = timezone.now()
+    # ========== ESTADÍSTICAS AVANZADAS ==========
+    # Ingresos por sellados (último mes)
     primer_dia_mes = hoy.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    ingresos_mes = MarcaSenal.objects.filter(
+        fecha_creacion__gte=primer_dia_mes,
+        valor_sellado__isnull=False
+    ).aggregate(total=Sum('valor_sellado'))['total'] or 0
+    
+    # Trámites del mes actual
     tramites_mes = Solicitud.objects.filter(
         fecha_solicitud__gte=primer_dia_mes
     ).count()
     
-    # Últimas solicitudes
-    ultimas_solicitudes = Solicitud.objects.select_related('productor').order_by('-fecha_solicitud')[:10]
-    
+    # ========== DISTRIBUCIONES ==========
     # Productores por estado
-    productores_por_estado = Productor.objects.values('estado').annotate(
+    productores_por_estado = list(Productor.objects.values('estado').annotate(
         total=Count('id')
-    ).order_by('estado')
+    ).order_by('estado'))
     
     # Marcas por tipo de trámite
-    marcas_por_tipo = MarcaSenal.objects.values('tipo_tramite').annotate(
+    marcas_por_tipo = list(MarcaSenal.objects.values('tipo_tramite').annotate(
         total=Count('id')
-    ).order_by('tipo_tramite')
+    ).order_by('tipo_tramite'))
+    
+    # Solicitudes por estado
+    solicitudes_por_estado = list(Solicitud.objects.values('estado').annotate(
+        total=Count('id')
+    ).order_by('estado'))
+    
+    # ========== DATOS RECIENTES ==========
+    # Últimas solicitudes (10)
+    ultimas_solicitudes = Solicitud.objects.select_related('productor').order_by('-fecha_solicitud')[:10]
     
     # Productores recientes (últimos 7 días)
     fecha_limite = hoy - datetime.timedelta(days=7)
@@ -93,17 +156,73 @@ def home(request):
         estado='VIGENTE'
     ).select_related('productor').order_by('fecha_vencimiento')[:5]
     
+    # Marcas recientemente inscritas
+    marcas_recientes = MarcaSenal.objects.select_related('productor').order_by('-fecha_inscripcion')[:5]
+    
+    # ========== ACTIVIDAD DEL MES ==========
+    # Gráfico de actividad mensual
+    meses_actividad = []
+    for i in range(6):
+        fecha = hoy - datetime.timedelta(days=30*i)
+        mes_str = fecha.strftime('%Y-%m')
+        nombre_mes = fecha.strftime('%b')
+        
+        # Solicitudes del mes
+        solicitudes_mes = Solicitud.objects.filter(
+            fecha_solicitud__year=fecha.year,
+            fecha_solicitud__month=fecha.month
+        ).count()
+        
+        # Marcas del mes
+        marcas_mes = MarcaSenal.objects.filter(
+            fecha_inscripcion__year=fecha.year,
+            fecha_inscripcion__month=fecha.month
+        ).count()
+        
+        meses_actividad.append({
+            'mes': mes_str,
+            'nombre': nombre_mes,
+            'solicitudes': solicitudes_mes,
+            'marcas': marcas_mes
+        })
+    
+    meses_actividad.reverse()  # Para mostrar del más antiguo al más reciente
+    
+    # ========== TOP 5 PRODUCTORES CON MÁS MARCAS ==========
+    top_productores = Productor.objects.annotate(
+        total_marcas=Count('marcas_senales')
+    ).order_by('-total_marcas')[:5]
+    
+    # ========== CONTEXT ==========
     context = {
+        # Estadísticas básicas
         'total_productores': total_productores,
         'total_marcas': total_marcas,
         'solicitudes_pendientes': solicitudes_pendientes,
         'total_campos': total_campos,
+        'ingresos_mes': ingresos_mes,
         'tramites_mes': tramites_mes,
+        
+        # Distribuciones
+        'productores_por_estado': json.dumps(productores_por_estado),
+        'marcas_por_tipo': json.dumps(marcas_por_tipo),
+        'solicitudes_por_estado': json.dumps(solicitudes_por_estado),
+        
+        # Datos recientes
         'ultimas_solicitudes': ultimas_solicitudes,
-        'productores_por_estado': list(productores_por_estado),
-        'marcas_por_tipo': list(marcas_por_tipo),
         'productores_recientes': productores_recientes,
         'marcas_por_vencer': marcas_por_vencer,
+        'marcas_recientes': marcas_recientes,
+        
+        # Actividad
+        'meses_actividad': json.dumps(meses_actividad),
+        
+        # Top productores
+        'top_productores': top_productores,
+        
+        # Para badges
+        'productores_estados_list': productores_por_estado,
+        'marcas_tipos_list': marcas_por_tipo,
     }
     
     return render(request, 'app_sigrams/index.html', context)
@@ -151,50 +270,54 @@ def logout_view(request):
 
 
 # REGISTRO
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.models import User
+
+from app_sigrams.forms import CustomUserCreationForm
+
 def register_view(request):
     if request.user.is_authenticated:
         return redirect('home')
-        
+
     if request.method == 'POST':
-        username = request.POST['username']
-        email = request.POST['email']
-        password = request.POST['password']
-        password2 = request.POST['password2']
-        first_name = request.POST.get('first_name', '')
-        last_name = request.POST.get('last_name', '')
+        form = CustomUserCreationForm(request.POST)
 
-        # Validaciones
-        if password != password2:
-            messages.error(request, 'Las contraseñas no coinciden.')
-            return render(request, 'app_sigrams/register.html')
-            
-        if User.objects.filter(username=username).exists():
-            messages.error(request, 'El nombre de usuario ya existe.')
-            return render(request, 'app_sigrams/register.html')
-            
-        if User.objects.filter(email=email).exists():
-            messages.error(request, 'El email ya está registrado.')
-            return render(request, 'app_sigrams/register.html')
+        if form.is_valid():
+            user = form.save()
 
-        # Crear usuario
-        user = User.objects.create_user(
-            username=username, 
-            email=email, 
-            password=password,
-            first_name=first_name,
-            last_name=last_name
-        )
-        
-        # Crear perfil por defecto (inspector)
-        UserProfile.objects.create(
-            user=user,
-            rol='inspector'
-        )
-        
-        messages.success(request, 'Cuenta creada correctamente. Ahora podés iniciar sesión.')
-        return redirect('login')
+            # Crear perfil por defecto (inspector)
+            UserProfile.objects.create(
+                user=user,
+                rol='inspector'
+            )
 
-    return render(request, 'app_sigrams/register.html')
+            messages.success(
+                request,
+                'Cuenta creada correctamente. Ahora podés iniciar sesión.'
+            )
+            return redirect('login')
+
+        else:
+            # Mostrar errores campo por campo como mensajes
+            for field, errors in form.errors.items():
+                label = (
+                    form.fields[field].label
+                    if field in form.fields
+                    else field
+                )
+                for error in errors:
+                    messages.error(request, f"{label}: {error}")
+
+    else:
+        form = CustomUserCreationForm()
+
+    return render(
+        request,
+        'app_sigrams/register.html',
+        {'form': form}
+    )
+
 
 
 class EsEmpleadoOMas(UserPassesTestMixin):
@@ -274,7 +397,26 @@ def nuevo_productor(request):
                 messages.success(request, f'Productor {productor.nombre_completo} creado exitosamente.')
                 return redirect('detalle_productor', pk=productor.pk)
             else:
-                messages.error(request, 'Por favor, corrija los errores en el formulario.')
+                # Obtener todos los errores para mostrarlos
+                error_list = []
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        if field != '__all__':
+                            field_label = form.fields[field].label or field
+                            error_list.append(f"{field_label}: {error}")
+                        else:
+                            error_list.append(str(error))
+                
+                if error_list:
+                    messages.error(request, "Errores en el formulario:")
+                    for error in error_list:
+                        messages.error(request, f"- {error}")
+                else:
+                    messages.error(request, 'Por favor, corrija los errores en el formulario.')
+                
+                # Mantener los datos ingresados
+                context = {'form': form, 'titulo': 'Nuevo Productor'}
+                return render(request, 'app_sigrams/productores/form.html', context)
         else:
             form = ProductorForm()
         
@@ -514,7 +656,21 @@ def nueva_marca(request):
     if request.method == 'POST':
         form = MarcaSenalForm(request.POST, request.FILES)
         if form.is_valid():
-            marca = form.save()
+            marca = form.save(commit=False)
+            
+            # Si se seleccionó una imagen predefinida, copiar la imagen
+            if marca.imagen_predefinida and not marca.imagen_marca:
+                imagen_predefinida = marca.imagen_predefinida
+                # Copiar la imagen predefinida al campo imagen_marca
+                if imagen_predefinida.imagen:
+                    # Esta es una forma simple de copiar el archivo
+                    marca.imagen_marca.save(
+                        f"predefinida_{imagen_predefinida.id}_{imagen_predefinida.imagen.name}",
+                        imagen_predefinida.imagen.file,
+                        save=False
+                    )
+            
+            marca.save()
             messages.success(request, f'Marca #{marca.numero_orden} creada exitosamente.')
             return redirect('detalle_marca', pk=marca.pk)
         else:
@@ -522,7 +678,11 @@ def nueva_marca(request):
     else:
         form = MarcaSenalForm()
     
-    context = {'form': form, 'titulo': 'Nueva Marca y Señal'}
+    context = {
+        'form': form, 
+        'titulo': 'Nueva Marca y Señal',
+        'imagenes_predefinidas': ImagenMarcaPredefinida.objects.filter(activa=True)
+    }
     return render(request, 'app_sigrams/marcas/form.html', context)
 
 
@@ -549,7 +709,7 @@ def editar_marca(request, pk):
 
 class ListaMarcasView(ListView):
     model = MarcaSenal
-    template_name = 'marcas/lista.html'
+    template_name = 'app_sigrams/marcas/lista.html'
     context_object_name = 'marcas'
     paginate_by = 20
 
@@ -568,7 +728,7 @@ class NuevaMarcaView(CreateView):
 class EditarMarcaView(UpdateView):
     model = MarcaSenal
     form_class = MarcaSenalForm
-    template_name = 'marcas/form.html'
+    template_name = 'app_sigrams/marcas/form.html'
     success_url = reverse_lazy('lista_marcas')
     
     def get_context_data(self, **kwargs):
@@ -579,7 +739,7 @@ class EditarMarcaView(UpdateView):
 
 class DetalleMarcaView(DetailView):
     model = MarcaSenal
-    template_name = 'marcas/detalle.html'
+    template_name = 'app_sigrams/marcas/detalle.html'
     context_object_name = 'marca'
 
 # Vista para cargar campos según el productor seleccionado (AJAX)
