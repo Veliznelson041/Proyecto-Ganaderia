@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, FileExtensionValidator
 
 # ----------------------------------------
 # PRODUCTOR GANADERO (Modelo principal)
@@ -209,26 +209,82 @@ class Solicitud(models.Model):
         ('RENOVACION', 'Renovación'),
         ('TRANSFERENCIA', 'Transferencia'),
         ('BAJA', 'Baja'),
+        ('MODIFICACION', 'Modificación'),
     ]
     
     ESTADO_CHOICES = [
         ('PENDIENTE', 'Pendiente'),
+        ('EN_REVISION', 'En revisión'),
         ('APROBADO', 'Aprobado'),
         ('RECHAZADO', 'Rechazado'),
+        ('OBSERVADO', 'Observado'),
+    ]
+    
+    PRIORIDAD_CHOICES = [
+        ('BAJA', 'Baja'),
+        ('MEDIA', 'Media'),
+        ('ALTA', 'Alta'),
+        ('URGENTE', 'Urgente'),
     ]
     
     productor = models.ForeignKey(Productor, on_delete=models.CASCADE, related_name='solicitudes')
     tipo_tramite = models.CharField(max_length=20, choices=TIPO_TRAMITE_CHOICES)
-    fecha_solicitud = models.DateField(auto_now_add=True)
+    fecha_solicitud = models.DateTimeField(auto_now_add=True)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
-    documento_adjunto = models.FileField(upload_to='solicitudes/', blank=True, null=True)
-    observaciones = models.TextField(blank=True)
+    prioridad = models.CharField(max_length=20, choices=PRIORIDAD_CHOICES, default='MEDIA')
+    
+    # Documentación adjunta
+    documento_adjunto = models.FileField(upload_to='solicitudes/%Y/%m/%d/', blank=True, null=True, 
+                                         validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'])])
+    imagen_adicional_1 = models.ImageField(upload_to='solicitudes/imagenes/%Y/%m/%d/', blank=True, null=True)
+    imagen_adicional_2 = models.ImageField(upload_to='solicitudes/imagenes/%Y/%m/%d/', blank=True, null=True)
+    
+    # Fechas importantes
+    fecha_revision = models.DateTimeField(blank=True, null=True)
+    fecha_resolucion = models.DateTimeField(blank=True, null=True)
+    fecha_vencimiento = models.DateTimeField(blank=True, null=True)
+    
+    # Información adicional
+    motivo = models.TextField(blank=True, verbose_name="Motivo de la solicitud")
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones generales")
+    observaciones_internas = models.TextField(blank=True, verbose_name="Observaciones internas")
     
     # Relación con marca/señal si aplica
-    marca_senal = models.ForeignKey(MarcaSenal, on_delete=models.CASCADE, blank=True, null=True, related_name='solicitudes')
+    marca_senal = models.ForeignKey(MarcaSenal, on_delete=models.SET_NULL, blank=True, null=True, related_name='solicitudes')
+    
+    # Responsables
+    solicitante = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='solicitudes_realizadas')
+    revisor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_revisadas')
+    aprobador = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_aprobadas')
+    
+    class Meta:
+        verbose_name = "Solicitud"
+        verbose_name_plural = "Solicitudes"
+        ordering = ['-fecha_solicitud']
+        permissions = [
+            ('can_review_solicitud', 'Puede revisar solicitudes'),
+            ('can_approve_solicitud', 'Puede aprobar solicitudes'),
+            ('can_reject_solicitud', 'Puede rechazar solicitudes'),
+        ]
     
     def __str__(self):
-        return f"{self.get_tipo_tramite_display()} - {self.productor}"
+        return f"Solicitud #{self.id} - {self.get_tipo_tramite_display()} - {self.productor}"
+    
+    @property
+    def tiempo_transcurrido(self):
+        if self.fecha_resolucion:
+            return self.fecha_resolucion - self.fecha_solicitud
+        return timezone.now() - self.fecha_solicitud
+    
+    @property
+    def esta_vencida(self):
+        if self.fecha_vencimiento:
+            return timezone.now() > self.fecha_vencimiento
+        return False
+    
+    @property
+    def dias_pendientes(self):
+        return (timezone.now() - self.fecha_solicitud).days
 
 # ----------------------------------------
 # PERFIL DE USUARIO

@@ -1,0 +1,285 @@
+{% extends 'app_sigrams/base.html' %}
+
+{% block title %}{{ titulo }} - SIGRAMS{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2 text-catamarca">{{ titulo }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'lista_solicitudes' %}" class="btn btn-outline-secondary">
+            ← Volver a la lista
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data" id="solicitudForm">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-catamarca mb-3">Datos de la Solicitud</h5>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.productor.id_for_label }}" class="form-label">Productor *</label>
+                        {{ form.productor }}
+                        {% if form.productor.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.productor.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.tipo_tramite.id_for_label }}" class="form-label">Tipo de Trámite *</label>
+                        {{ form.tipo_tramite }}
+                        {% if form.tipo_tramite.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.tipo_tramite.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.marca_senal.id_for_label }}" class="form-label">Marca/Señal</label>
+                        {{ form.marca_senal }}
+                        {% if form.marca_senal.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.marca_senal.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text" id="marca-senal-help">
+                            Seleccione solo para renovaciones, transferencias, bajas o modificaciones
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.prioridad.id_for_label }}" class="form-label">Prioridad</label>
+                        {{ form.prioridad }}
+                        {% if form.prioridad.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.prioridad.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <h5 class="text-catamarca mb-3">Documentación</h5>
+
+                    <div class="mb-3">
+                        <label for="{{ form.documento_adjunto.id_for_label }}" class="form-label">Documento Adjunto</label>
+                        {{ form.documento_adjunto }}
+                        {% if form.documento_adjunto.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.documento_adjunto.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">Formatos: PDF, JPG, PNG, DOC, DOCX (máx. 10MB)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.imagen_adicional_1.id_for_label }}" class="form-label">Imagen Adicional 1</label>
+                        {{ form.imagen_adicional_1 }}
+                        {% if form.imagen_adicional_1.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.imagen_adicional_1.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.imagen_adicional_2.id_for_label }}" class="form-label">Imagen Adicional 2</label>
+                        {{ form.imagen_adicional_2 }}
+                        {% if form.imagen_adicional_2.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.imagen_adicional_2.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.fecha_vencimiento.id_for_label }}" class="form-label">Fecha de Vencimiento</label>
+                        {{ form.fecha_vencimiento }}
+                        {% if form.fecha_vencimiento.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.fecha_vencimiento.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">Fecha límite para resolver la solicitud</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-12">
+                    <h5 class="text-catamarca mb-3">Información Adicional</h5>
+
+                    <div class="mb-3">
+                        <label for="{{ form.motivo.id_for_label }}" class="form-label">Motivo de la Solicitud *</label>
+                        {{ form.motivo }}
+                        {% if form.motivo.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.motivo.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">Describa detalladamente el motivo de la solicitud (mínimo 20 caracteres)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.observaciones.id_for_label }}" class="form-label">Observaciones</label>
+                        {{ form.observaciones }}
+                        {% if form.observaciones.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.observaciones.errors %}
+                            <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">Observaciones adicionales que considere relevantes</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 border-top pt-3">
+                <button type="submit" class="btn btn-catamarca btn-lg me-2">
+                    📨 Enviar Solicitud
+                </button>
+                <a href="{% url 'lista_solicitudes' %}" class="btn btn-outline-secondary">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.form-control:required {
+    border-left: 3px solid #0A2E5A;
+}
+
+#id_marca_senal:disabled {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Dinamizar el campo de marca/señal según el productor seleccionado
+    const productorSelect = document.getElementById('id_productor');
+    const marcaSenalSelect = document.getElementById('id_marca_senal');
+    const tipoTramiteSelect = document.getElementById('id_tipo_tramite');
+    const marcaSenalHelp = document.getElementById('marca-senal-help');
+    
+    function toggleMarcaSenal(select) {
+        const tipo = select.value;
+        const requiereMarca = ['RENOVACION', 'TRANSFERENCIA', 'BAJA', 'MODIFICACION'].includes(tipo);
+        
+        if (requiereMarca) {
+            marcaSenalSelect.disabled = false;
+            marcaSenalSelect.required = true;
+            marcaSenalHelp.textContent = 'Este campo es obligatorio para este tipo de trámite';
+        } else {
+            marcaSenalSelect.disabled = true;
+            marcaSenalSelect.required = false;
+            marcaSenalSelect.value = '';
+            marcaSenalHelp.textContent = 'Seleccione solo para renovaciones, transferencias, bajas o modificaciones';
+        }
+    }
+    
+    if (tipoTramiteSelect) {
+        // Ejecutar al cargar
+        toggleMarcaSenal(tipoTramiteSelect);
+        
+        // Ejecutar al cambiar
+        tipoTramiteSelect.addEventListener('change', function() {
+            toggleMarcaSenal(this);
+        });
+    }
+    
+    if (productorSelect && marcaSenalSelect) {
+        productorSelect.addEventListener('change', function() {
+            const productorId = this.value;
+            
+            if (productorId) {
+                // Limpiar opciones
+                marcaSenalSelect.innerHTML = '<option value="">Cargando marcas/señales...</option>';
+                marcaSenalSelect.disabled = true;
+                
+                // Llamar a la API para obtener marcas del productor
+                fetch(`/ajax/marcas/${productorId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        marcaSenalSelect.innerHTML = '<option value="">---------</option>';
+                        data.forEach(marca => {
+                            const option = document.createElement('option');
+                            option.value = marca.id;
+                            option.textContent = `Marca #${marca.numero_orden} - ${marca.descripcion_marca.substring(0, 50)}...`;
+                            marcaSenalSelect.appendChild(option);
+                        });
+                        
+                        // Re-activar si es necesario según el tipo de trámite
+                        if (tipoTramiteSelect) {
+                            toggleMarcaSenal(tipoTramiteSelect);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        marcaSenalSelect.innerHTML = '<option value="">Error al cargar marcas</option>';
+                        marcaSenalSelect.disabled = false;
+                    });
+            } else {
+                marcaSenalSelect.innerHTML = '<option value="">---------</option>';
+                marcaSenalSelect.disabled = true;
+            }
+        });
+        
+        // Si ya hay un productor seleccionado (al editar), cargar sus marcas
+        if (productorSelect.value) {
+            productorSelect.dispatchEvent(new Event('change'));
+        }
+    }
+    
+    // Validar tamaño de archivos antes de enviar
+    document.getElementById('solicitudForm').addEventListener('submit', function(e) {
+        const archivos = document.querySelectorAll('input[type="file"]');
+        let archivosValidos = true;
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        
+        archivos.forEach(archivo => {
+            if (archivo.files.length > 0) {
+                const file = archivo.files[0];
+                if (file.size > maxSize) {
+                    alert(`El archivo "${file.name}" supera el tamaño máximo de 10MB.`);
+                    archivosValidos = false;
+                }
+            }
+        });
+        
+        if (!archivosValidos) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

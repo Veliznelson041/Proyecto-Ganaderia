@@ -14,10 +14,22 @@ from .validators import (
 import re
 
 
+import re
+from django import forms
+from .models import Productor
+from .validators import (
+    DNIValidator,
+    CUITValidator,
+    NombreApellidoValidator,
+    TelefonoValidator,
+    EmailValidator
+)
+
+
 class ProductorForm(forms.ModelForm):
 
     # =========================
-    # CAMPOS CON VALIDADORES
+    # CAMPOS PERSONALIZADOS
     # =========================
     dni = forms.CharField(
         max_length=8,
@@ -27,7 +39,8 @@ class ProductorForm(forms.ModelForm):
             'required': 'required',
             'pattern': r'\d{7,8}',
             'title': 'DNI: 7 u 8 números sin puntos ni espacios',
-            'placeholder': '12345678'
+            'placeholder': '12345678',
+            'oninput': "this.value = this.value.replace(/[^0-9]/g, '')"
         })
     )
 
@@ -38,7 +51,9 @@ class ProductorForm(forms.ModelForm):
             'class': 'form-control',
             'pattern': r'\d{2}-\d{8}-\d{1}',
             'title': 'Formato: 00-00000000-0',
-            'placeholder': '20-12345678-9'
+            'placeholder': '20-12345678-9',
+            'onkeypress': 'return validarCUIT(event, this)',
+            'oninput': 'formatearCUIT(this)'
         })
     )
 
@@ -49,7 +64,9 @@ class ProductorForm(forms.ModelForm):
             'required': 'required',
             'pattern': r'[A-Za-záéíóúÁÉÍÓÚñÑ\s]+',
             'title': 'Solo letras y espacios',
-            'placeholder': 'Juan'
+            'placeholder': 'Juan',
+            'onkeypress': 'return soloLetras(event)',
+            'oninput': 'capitalizarPrimeraLetra(this)'
         })
     )
 
@@ -60,7 +77,9 @@ class ProductorForm(forms.ModelForm):
             'required': 'required',
             'pattern': r'[A-Za-záéíóúÁÉÍÓÚñÑ\s]+',
             'title': 'Solo letras y espacios',
-            'placeholder': 'Pérez'
+            'placeholder': 'Pérez',
+            'onkeypress': 'return soloLetras(event)',
+            'oninput': 'capitalizarPrimeraLetra(this)'
         })
     )
 
@@ -71,7 +90,9 @@ class ProductorForm(forms.ModelForm):
         widget=forms.TextInput(attrs={
             'class': 'form-control',
             'pattern': r'[\d\s\-\+\(\)]+',
-            'title': 'Ej: 3511234567, (351) 123-4567'
+            'title': 'Ej: 3511234567, (351) 123-4567, +54 351 1234567',
+            'placeholder': '3511234567',
+            'oninput': 'validarTelefono(this)'
         })
     )
 
@@ -80,7 +101,9 @@ class ProductorForm(forms.ModelForm):
         validators=[EmailValidator()],
         widget=forms.EmailInput(attrs={
             'class': 'form-control',
-            'placeholder': 'usuario@ejemplo.com'
+            'placeholder': 'usuario@ejemplo.com',
+            'title': 'Ejemplo: usuario@dominio.com',
+            'oninput': 'validarEmail(this)'
         })
     )
 
@@ -112,7 +135,9 @@ class ProductorForm(forms.ModelForm):
             'campo': forms.TextInput(attrs={'class': 'form-control'}),
             'localidad': forms.TextInput(attrs={
                 'class': 'form-control',
-                'required': 'required'
+                'required': 'required',
+                'pattern': r'[A-Za-záéíóúÁÉÍÓÚñÑ\s]+',
+                'title': 'Solo letras y espacios'
             }),
             'municipio': forms.TextInput(attrs={'class': 'form-control'}),
             'departamento': forms.TextInput(attrs={'class': 'form-control'}),
@@ -169,13 +194,13 @@ class ProductorForm(forms.ModelForm):
         dni = self.cleaned_data.get('dni')
 
         if dni:
-            dni_limpio = re.sub(r'[^\d]', '', str(dni))
+            dni_limpio = re.sub(r'\D', '', dni)
 
-            query = Productor.objects.filter(dni__icontains=dni_limpio)
+            qs = Productor.objects.filter(dni=dni_limpio)
             if self.instance.pk:
-                query = query.exclude(pk=self.instance.pk)
+                qs = qs.exclude(pk=self.instance.pk)
 
-            if query.exists():
+            if qs.exists():
                 raise forms.ValidationError(
                     f'Ya existe un productor con DNI {dni_limpio}.',
                     code='duplicate_dni'
@@ -187,9 +212,7 @@ class ProductorForm(forms.ModelForm):
 
     def clean_telefono(self):
         telefono = self.cleaned_data.get('telefono')
-        if telefono:
-            return ' '.join(telefono.split())
-        return telefono
+        return ' '.join(telefono.split()) if telefono else telefono
 
     def clean(self):
         cleaned_data = super().clean()
@@ -202,12 +225,13 @@ class ProductorForm(forms.ModelForm):
             )
 
         # Validación geográfica Argentina
-        if latitud < -55 or latitud > -21 or longitud < -75 or longitud > -53:
+        if not (-55 <= latitud <= -21 and -75 <= longitud <= -53):
             raise forms.ValidationError(
                 'Las coordenadas deben estar dentro del territorio argentino.'
             )
 
         return cleaned_data
+
 
 
 class CampoForm(forms.ModelForm):
@@ -407,13 +431,152 @@ class MarcaSenalForm(forms.ModelForm):
         return cleaned_data
 
 
+from django.core.validators import FileExtensionValidator
+from datetime import timedelta
+
 class SolicitudForm(forms.ModelForm):
+    # Campos con validaciones específicas
+    motivo = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'required': 'required',
+            'placeholder': 'Describa el motivo de la solicitud...',
+            'minlength': '20',
+            'title': 'Mínimo 20 caracteres'
+        })
+    )
+    
+    observaciones = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Observaciones adicionales...'
+        })
+    )
+    
+    fecha_vencimiento = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(attrs={
+            'class': 'form-control',
+            'type': 'datetime-local'
+        })
+    )
+    
+    documento_adjunto = forms.FileField(
+        required=False,
+        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'])],
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.pdf,.jpg,.jpeg,.png,.doc,.docx'
+        })
+    )
+    
     class Meta:
         model = Solicitud
-        fields = ['productor', 'tipo_tramite', 'marca_senal', 'documento_adjunto', 'observaciones']
+        fields = [
+            'productor', 'tipo_tramite', 'marca_senal', 'prioridad', 
+            'motivo', 'observaciones', 'documento_adjunto',
+            'imagen_adicional_1', 'imagen_adicional_2', 'fecha_vencimiento'
+        ]
         widgets = {
-            'productor': forms.Select(attrs={'class': 'form-control'}),
-            'tipo_tramite': forms.Select(attrs={'class': 'form-control'}),
-            'marca_senal': forms.Select(attrs={'class': 'form-control'}),
-            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'productor': forms.Select(attrs={
+                'class': 'form-control',
+                'required': 'required'
+            }),
+            'tipo_tramite': forms.Select(attrs={
+                'class': 'form-control',
+                'required': 'required',
+                'onchange': 'toggleMarcaSenal(this)'
+            }),
+            'marca_senal': forms.Select(attrs={
+                'class': 'form-control',
+                'disabled': 'disabled'
+            }),
+            'prioridad': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'imagen_adicional_1': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'imagen_adicional_2': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filtrar marcas/señales según el productor seleccionado
+        if 'productor' in self.data:
+            try:
+                productor_id = int(self.data.get('productor'))
+                self.fields['marca_senal'].queryset = MarcaSenal.objects.filter(productor_id=productor_id)
+            except (ValueError, TypeError):
+                self.fields['marca_senal'].queryset = MarcaSenal.objects.none()
+        elif self.instance.pk and self.instance.productor:
+            self.fields['marca_senal'].queryset = self.instance.productor.marcas_senales.all()
+        else:
+            self.fields['marca_senal'].queryset = MarcaSenal.objects.none()
+        
+        # Establecer fecha de vencimiento por defecto (7 días)
+        if not self.instance.pk:
+            from django.utils import timezone
+            self.fields['fecha_vencimiento'].initial = timezone.now() + timedelta(days=7)
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        tipo_tramite = cleaned_data.get('tipo_tramite')
+        marca_senal = cleaned_data.get('marca_senal')
+        
+        # Validaciones según el tipo de trámite
+        if tipo_tramite in ['RENOVACION', 'TRANSFERENCIA', 'BAJA', 'MODIFICACION']:
+            if not marca_senal:
+                self.add_error('marca_senal', 'Para este tipo de trámite debe seleccionar una marca/señal.')
+        
+        # Validar que la fecha de vencimiento sea futura
+        fecha_vencimiento = cleaned_data.get('fecha_vencimiento')
+        if fecha_vencimiento and fecha_vencimiento < timezone.now():
+            self.add_error('fecha_vencimiento', 'La fecha de vencimiento debe ser futura.')
+        
+        # Validar tamaño de archivos
+        documento_adjunto = cleaned_data.get('documento_adjunto')
+        if documento_adjunto and documento_adjunto.size > 10 * 1024 * 1024:  # 10MB
+            self.add_error('documento_adjunto', 'El documento no puede superar los 10MB.')
+        
+        return cleaned_data
+    
+    def save(self, commit=True):
+        solicitud = super().save(commit=False)
+        
+        # Asignar el solicitante actual
+        if not solicitud.pk:
+            solicitud.solicitante = self.user
+        
+        if commit:
+            solicitud.save()
+        
+        return solicitud
+
+
+# Formulario para revisión de solicitudes
+class SolicitudRevisionForm(forms.ModelForm):
+    class Meta:
+        model = Solicitud
+        fields = ['estado', 'observaciones_internas', 'fecha_vencimiento']
+        widgets = {
+            'estado': forms.Select(attrs={'class': 'form-control'}),
+            'observaciones_internas': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Observaciones internas para el revisor...'
+            }),
+            'fecha_vencimiento': forms.DateTimeInput(attrs={
+                'class': 'form-control',
+                'type': 'datetime-local'
+            }),
         }

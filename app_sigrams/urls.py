@@ -26,7 +26,15 @@ urlpatterns = [
     # URLs para Solicitudes
     path('solicitudes/', views.lista_solicitudes, name='lista_solicitudes'),
     path('solicitudes/nueva/', views.nueva_solicitud, name='nueva_solicitud'),
-    path('solicitudes/<int:pk>/<str:estado>/', views.cambiar_estado_solicitud, name='cambiar_estado_solicitud'),
+    path('solicitudes/<int:pk>/', views.detalle_solicitud, name='detalle_solicitud'),
+    path('solicitudes/<int:pk>/editar/', views.editar_solicitud, name='editar_solicitud'),
+    path('solicitudes/<int:pk>/revision/', views.revision_solicitud, name='revision_solicitud'),
+    path('solicitudes/<int:pk>/<str:accion>/', views.cambiar_estado_solicitud, name='cambiar_estado_solicitud'),
+    path('mis-solicitudes/', views.mis_solicitudes, name='mis_solicitudes'),
+    path('dashboard-solicitudes/', views.dashboard_solicitudes, name='dashboard_solicitudes'),
+
+    # URLs para AJAX
+    path('ajax/marcas/<int:productor_id>/', views.cargar_campos, name='ajax_marcas'),
     
     # API
     path('api/productores/geojson/', views.api_productores_geojson, name='api_productores_geojson'),

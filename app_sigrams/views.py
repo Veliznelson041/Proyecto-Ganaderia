@@ -756,14 +756,36 @@ def cargar_campos(request):
 # VISTAS PARA SOLICITUDES
 # ============================================================================
 
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db.models import Q, Count, Case, When, IntegerField
+from django.utils import timezone
+from datetime import timedelta
+from app_registros.forms import SolicitudForm, SolicitudRevisionForm
+
 @login_required
 def lista_solicitudes(request):
-    """Lista todas las solicitudes"""
-    solicitudes = Solicitud.objects.all()
+    """Lista todas las solicitudes con filtros avanzados"""
+    # Obtener todas las solicitudes
+    solicitudes = Solicitud.objects.select_related(
+        'productor', 'marca_senal', 'solicitante', 'revisor', 'aprobador'
+    ).all().order_by('-fecha_solicitud')
+    
+    # Estadísticas
+    total_solicitudes = solicitudes.count()
+    solicitudes_pendientes = solicitudes.filter(estado='PENDIENTE').count()
+    solicitudes_en_revision = solicitudes.filter(estado='EN_REVISION').count()
+    solicitudes_vencidas = solicitudes.filter(
+        Q(fecha_vencimiento__lt=timezone.now()) & 
+        ~Q(estado__in=['APROBADO', 'RECHAZADO'])
+    ).count()
     
     # Filtros
     estado = request.GET.get('estado', '')
     tipo_tramite = request.GET.get('tipo_tramite', '')
+    prioridad = request.GET.get('prioridad', '')
+    productor_id = request.GET.get('productor', '')
+    fecha_inicio = request.GET.get('fecha_inicio', '')
+    fecha_fin = request.GET.get('fecha_fin', '')
     
     if estado:
         solicitudes = solicitudes.filter(estado=estado)
@@ -771,43 +793,277 @@ def lista_solicitudes(request):
     if tipo_tramite:
         solicitudes = solicitudes.filter(tipo_tramite=tipo_tramite)
     
+    if prioridad:
+        solicitudes = solicitudes.filter(prioridad=prioridad)
+    
+    if productor_id:
+        solicitudes = solicitudes.filter(productor_id=productor_id)
+    
+    if fecha_inicio:
+        solicitudes = solicitudes.filter(fecha_solicitud__gte=fecha_inicio)
+    
+    if fecha_fin:
+        solicitudes = solicitudes.filter(fecha_solicitud__lte=fecha_fin)
+    
+    # Paginación
+    page = request.GET.get('page', 1)
+    paginator = Paginator(solicitudes, 20)  # 20 items por página
+    
+    try:
+        solicitudes_pagina = paginator.page(page)
+    except PageNotAnInteger:
+        solicitudes_pagina = paginator.page(1)
+    except EmptyPage:
+        solicitudes_pagina = paginator.page(paginator.num_pages)
+    
     context = {
-        'solicitudes': solicitudes,
+        'solicitudes': solicitudes_pagina,
+        'total_solicitudes': total_solicitudes,
+        'solicitudes_pendientes': solicitudes_pendientes,
+        'solicitudes_en_revision': solicitudes_en_revision,
+        'solicitudes_vencidas': solicitudes_vencidas,
         'estado_filtro': estado,
         'tipo_tramite_filtro': tipo_tramite,
+        'prioridad_filtro': prioridad,
+        'productor_filtro': productor_id,
+        'fecha_inicio_filtro': fecha_inicio,
+        'fecha_fin_filtro': fecha_fin,
+        'productores': Productor.objects.all(),
     }
     return render(request, 'app_sigrams/solicitudes/lista.html', context)
+
+@login_required
+def detalle_solicitud(request, pk):
+    """Detalle de una solicitud específica"""
+    solicitud = get_object_or_404(Solicitud.objects.select_related(
+        'productor', 'marca_senal', 'solicitante', 'revisor', 'aprobador'
+    ), pk=pk)
+    
+    # Verificar permisos
+    user_profile = UserProfile.objects.get(user=request.user)
+    
+    context = {
+        'solicitud': solicitud,
+        'user_profile': user_profile,
+    }
+    return render(request, 'app_sigrams/solicitudes/detalle.html', context)
 
 @login_required
 def nueva_solicitud(request):
     """Crear nueva solicitud"""
     if request.method == 'POST':
-        form = SolicitudForm(request.POST, request.FILES)
+        form = SolicitudForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
             solicitud = form.save()
+            
+            # Crear registro en el log de cambios
+            ChangeLog.objects.create(
+                user=request.user,
+                modelo='Solicitud',
+                objeto_id=solicitud.id,
+                accion='CREACION',
+                snapshot={
+                    'tipo_tramite': solicitud.tipo_tramite,
+                    'productor': str(solicitud.productor),
+                    'estado': solicitud.estado
+                }
+            )
+            
             messages.success(request, f'Solicitud #{solicitud.id} creada exitosamente.')
-            return redirect('lista_solicitudes')
+            return redirect('detalle_solicitud', pk=solicitud.pk)
+        else:
+            messages.error(request, 'Por favor, corrija los errores en el formulario.')
     else:
-        form = SolicitudForm()
+        form = SolicitudForm(user=request.user)
     
-    context = {'form': form, 'titulo': 'Nueva Solicitud'}
+    context = {
+        'form': form,
+        'titulo': 'Nueva Solicitud',
+        'productores': Productor.objects.all(),
+    }
     return render(request, 'app_sigrams/solicitudes/form.html', context)
 
 @login_required
-def cambiar_estado_solicitud(request, pk, estado):
-    """Cambiar estado de una solicitud"""
+def editar_solicitud(request, pk):
+    """Editar solicitud existente"""
     solicitud = get_object_or_404(Solicitud, pk=pk)
     
-    if estado in ['APROBADO', 'RECHAZADO']:
-        solicitud.estado = estado
-        solicitud.save()
-        
-        if estado == 'APROBADO':
-            messages.success(request, f'Solicitud #{solicitud.id} aprobada.')
-        else:
-            messages.warning(request, f'Solicitud #{solicitud.id} rechazada.')
+    # Verificar que el usuario pueda editar (solo el solicitante o admin)
+    user_profile = UserProfile.objects.get(user=request.user)
+    if not (solicitud.solicitante == request.user or user_profile.rol == 'admin'):
+        messages.error(request, 'No tiene permisos para editar esta solicitud.')
+        return redirect('detalle_solicitud', pk=pk)
     
-    return redirect('lista_solicitudes')
+    if request.method == 'POST':
+        form = SolicitudForm(request.POST, request.FILES, instance=solicitud, user=request.user)
+        if form.is_valid():
+            solicitud = form.save()
+            
+            ChangeLog.objects.create(
+                user=request.user,
+                modelo='Solicitud',
+                objeto_id=solicitud.id,
+                accion='MODIFICACION',
+                snapshot={
+                    'tipo_tramite': solicitud.tipo_tramite,
+                    'estado': solicitud.estado
+                }
+            )
+            
+            messages.success(request, f'Solicitud #{solicitud.id} actualizada exitosamente.')
+            return redirect('detalle_solicitud', pk=solicitud.pk)
+        else:
+            messages.error(request, 'Por favor, corrija los errores en el formulario.')
+    else:
+        form = SolicitudForm(instance=solicitud, user=request.user)
+    
+    context = {
+        'form': form,
+        'titulo': f'Editar Solicitud #{solicitud.id}',
+        'solicitud': solicitud,
+    }
+    return render(request, 'app_sigrams/solicitudes/form.html', context)
+
+@login_required
+def cambiar_estado_solicitud(request, pk, accion):
+    """Cambiar estado de una solicitud"""
+    solicitud = get_object_or_404(Solicitud, pk=pk)
+    user_profile = UserProfile.objects.get(user=request.user)
+    
+    # Verificar permisos según la acción
+    if accion == 'revisar' and user_profile.rol in ['admin', 'empleado']:
+        solicitud.estado = 'EN_REVISION'
+        solicitud.revisor = request.user
+        solicitud.fecha_revision = timezone.now()
+        mensaje = f'Solicitud #{solicitud.id} puesta en revisión.'
+    
+    elif accion == 'aprobar' and user_profile.rol in ['admin']:
+        solicitud.estado = 'APROBADO'
+        solicitud.aprobador = request.user
+        solicitud.fecha_resolucion = timezone.now()
+        mensaje = f'Solicitud #{solicitud.id} aprobada.'
+    
+    elif accion == 'rechazar' and user_profile.rol in ['admin']:
+        solicitud.estado = 'RECHAZADO'
+        solicitud.fecha_resolucion = timezone.now()
+        mensaje = f'Solicitud #{solicitud.id} rechazada.'
+    
+    elif accion == 'observar' and user_profile.rol in ['admin', 'empleado']:
+        solicitud.estado = 'OBSERVADO'
+        mensaje = f'Solicitud #{solicitud.id} marcada como observada.'
+    
+    elif accion == 'pendiente' and user_profile.rol in ['admin', 'empleado']:
+        solicitud.estado = 'PENDIENTE'
+        mensaje = f'Solicitud #{solicitud.id} devuelta a pendiente.'
+    
+    else:
+        messages.error(request, 'No tiene permisos para realizar esta acción.')
+        return redirect('detalle_solicitud', pk=pk)
+    
+    solicitud.save()
+    
+    ChangeLog.objects.create(
+        user=request.user,
+        modelo='Solicitud',
+        objeto_id=solicitud.id,
+        accion=accion.upper(),
+        snapshot={'estado': solicitud.estado}
+    )
+    
+    messages.success(request, mensaje)
+    return redirect('detalle_solicitud', pk=pk)
+
+@login_required
+def revision_solicitud(request, pk):
+    """Formulario de revisión de solicitud"""
+    solicitud = get_object_or_404(Solicitud, pk=pk)
+    user_profile = UserProfile.objects.get(user=request.user)
+    
+    # Verificar permisos
+    if user_profile.rol not in ['admin', 'empleado']:
+        messages.error(request, 'No tiene permisos para revisar solicitudes.')
+        return redirect('detalle_solicitud', pk=pk)
+    
+    if request.method == 'POST':
+        form = SolicitudRevisionForm(request.POST, instance=solicitud)
+        if form.is_valid():
+            solicitud = form.save(commit=False)
+            solicitud.revisor = request.user
+            solicitud.fecha_revision = timezone.now()
+            solicitud.save()
+            
+            ChangeLog.objects.create(
+                user=request.user,
+                modelo='Solicitud',
+                objeto_id=solicitud.id,
+                accion='REVISION',
+                snapshot={'estado': solicitud.estado}
+            )
+            
+            messages.success(request, f'Revisión de solicitud #{solicitud.id} guardada.')
+            return redirect('detalle_solicitud', pk=pk)
+    else:
+        form = SolicitudRevisionForm(instance=solicitud)
+    
+    context = {
+        'form': form,
+        'solicitud': solicitud,
+        'titulo': f'Revisión de Solicitud #{solicitud.id}',
+    }
+    return render(request, 'app_sigrams/solicitudes/revision.html', context)
+
+@login_required
+def mis_solicitudes(request):
+    """Lista las solicitudes del usuario actual"""
+    solicitudes = Solicitud.objects.filter(solicitante=request.user).order_by('-fecha_solicitud')
+    
+    context = {
+        'solicitudes': solicitudes,
+        'titulo': 'Mis Solicitudes',
+    }
+    return render(request, 'app_sigrams/solicitudes/mis_solicitudes.html', context)
+
+@login_required
+def dashboard_solicitudes(request):
+    """Dashboard con estadísticas de solicitudes"""
+    from django.db.models import Count, Q
+    
+    # Estadísticas generales
+    total_solicitudes = Solicitud.objects.count()
+    solicitudes_pendientes = Solicitud.objects.filter(estado='PENDIENTE').count()
+    solicitudes_en_revision = Solicitud.objects.filter(estado='EN_REVISION').count()
+    solicitudes_aprobadas = Solicitud.objects.filter(estado='APROBADO').count()
+    
+    # Solicitudes por tipo de trámite
+    solicitudes_por_tipo = Solicitud.objects.values('tipo_tramite').annotate(
+        total=Count('id')
+    ).order_by('tipo_tramite')
+    
+    # Solicitudes por prioridad
+    solicitudes_por_prioridad = Solicitud.objects.values('prioridad').annotate(
+        total=Count('id')
+    ).order_by('prioridad')
+    
+    # Solicitudes vencidas
+    solicitudes_vencidas = Solicitud.objects.filter(
+        Q(fecha_vencimiento__lt=timezone.now()) & 
+        ~Q(estado__in=['APROBADO', 'RECHAZADO'])
+    ).count()
+    
+    # Últimas solicitudes
+    ultimas_solicitudes = Solicitud.objects.select_related('productor', 'solicitante').order_by('-fecha_solicitud')[:10]
+    
+    context = {
+        'total_solicitudes': total_solicitudes,
+        'solicitudes_pendientes': solicitudes_pendientes,
+        'solicitudes_en_revision': solicitudes_en_revision,
+        'solicitudes_aprobadas': solicitudes_aprobadas,
+        'solicitudes_vencidas': solicitudes_vencidas,
+        'solicitudes_por_tipo': list(solicitudes_por_tipo),
+        'solicitudes_por_prioridad': list(solicitudes_por_prioridad),
+        'ultimas_solicitudes': ultimas_solicitudes,
+    }
+    return render(request, 'app_sigrams/solicitudes/dashboard.html', context)
 
 
 
