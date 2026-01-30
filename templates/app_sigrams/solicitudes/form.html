@@ -173,113 +173,195 @@
 </div>
 
 <style>
-.form-control:required {
-    border-left: 3px solid #0A2E5A;
+/* Estilos para campos deshabilitados */
+#id_marca_senal:disabled {
+    background-color: #e9ecef !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
 }
 
-#id_marca_senal:disabled {
-    background-color: #e9ecef;
-    cursor: not-allowed;
+.bg-secondary {
+    background-color: #e9ecef !important;
+}
+
+/* Mejorar la apariencia de los selects */
+.form-control:required:valid {
+    border-color: #28a745;
+}
+
+.form-control:required:invalid {
+    border-color: #dc3545;
+}
+
+/* Estilos para el texto de ayuda */
+.form-text.text-info {
+    color: #17a2b8 !important;
+    font-weight: 500;
+}
+
+.form-text.text-warning {
+    color: #ffc107 !important;
+    font-weight: 500;
 }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Dinamizar el campo de marca/señal según el productor seleccionado
+    // Elementos del DOM
     const productorSelect = document.getElementById('id_productor');
     const marcaSenalSelect = document.getElementById('id_marca_senal');
     const tipoTramiteSelect = document.getElementById('id_tipo_tramite');
     const marcaSenalHelp = document.getElementById('marca-senal-help');
     
-    function toggleMarcaSenal(select) {
-        const tipo = select.value;
+    // Funciones auxiliares
+    function toggleMarcaSenalField() {
+        const tipo = tipoTramiteSelect.value;
         const requiereMarca = ['RENOVACION', 'TRANSFERENCIA', 'BAJA', 'MODIFICACION'].includes(tipo);
+        
+        console.log('Tipo trámite:', tipo, 'Requiere marca:', requiereMarca);
         
         if (requiereMarca) {
             marcaSenalSelect.disabled = false;
             marcaSenalSelect.required = true;
+            marcaSenalSelect.classList.remove('bg-secondary');
             marcaSenalHelp.textContent = 'Este campo es obligatorio para este tipo de trámite';
+            marcaSenalHelp.className = 'form-text text-info';
+            
+            // Si hay un productor seleccionado, cargar sus marcas
+            if (productorSelect.value) {
+                cargarMarcasDelProductor(productorSelect.value);
+            }
         } else {
             marcaSenalSelect.disabled = true;
             marcaSenalSelect.required = false;
             marcaSenalSelect.value = '';
+            marcaSenalSelect.innerHTML = '<option value="">---------</option>';
+            marcaSenalSelect.classList.add('bg-secondary');
             marcaSenalHelp.textContent = 'Seleccione solo para renovaciones, transferencias, bajas o modificaciones';
+            marcaSenalHelp.className = 'form-text';
         }
     }
     
-    if (tipoTramiteSelect) {
-        // Ejecutar al cargar
-        toggleMarcaSenal(tipoTramiteSelect);
+    function cargarMarcasDelProductor(productorId) {
+        if (!productorId) {
+            marcaSenalSelect.innerHTML = '<option value="">---------</option>';
+            return;
+        }
         
-        // Ejecutar al cambiar
-        tipoTramiteSelect.addEventListener('change', function() {
-            toggleMarcaSenal(this);
-        });
+        // Mostrar loading
+        marcaSenalSelect.innerHTML = '<option value="">Cargando marcas...</option>';
+        marcaSenalSelect.disabled = true;
+        
+        // Hacer petición AJAX
+        fetch(`/ajax/marcas/${productorId}/`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta del servidor');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Marcas recibidas:', data);
+                
+                if (data.length === 0) {
+                    marcaSenalSelect.innerHTML = '<option value="">No hay marcas registradas</option>';
+                    marcaSenalHelp.textContent = 'Este productor no tiene marcas registradas. Debe crear una marca primero.';
+                    marcaSenalHelp.className = 'form-text text-warning';
+                } else {
+                    marcaSenalSelect.innerHTML = '<option value="">Seleccione una marca</option>';
+                    data.forEach(marca => {
+                        const option = document.createElement('option');
+                        option.value = marca.id;
+                        let descripcion = marca.descripcion_marca || '';
+                        if (descripcion.length > 50) {
+                            descripcion = descripcion.substring(0, 50) + '...';
+                        }
+                        option.textContent = `Marca #${marca.numero_orden} - ${descripcion}`;
+                        option.title = marca.descripcion_marca || '';
+                        marcaSenalSelect.appendChild(option);
+                    });
+                    
+                    marcaSenalSelect.disabled = false;
+                    
+                    // Si solo hay una marca, seleccionarla automáticamente
+                    if (data.length === 1) {
+                        marcaSenalSelect.value = data[0].id;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error cargando marcas:', error);
+                marcaSenalSelect.innerHTML = '<option value="">Error al cargar marcas</option>';
+                marcaSenalSelect.disabled = false;
+            });
+    }
+    
+    // Event listeners
+    if (tipoTramiteSelect) {
+        // Ejecutar al cargar la página
+        toggleMarcaSenalField();
+        
+        // Ejecutar al cambiar el tipo de trámite
+        tipoTramiteSelect.addEventListener('change', toggleMarcaSenalField);
     }
     
     if (productorSelect && marcaSenalSelect) {
         productorSelect.addEventListener('change', function() {
             const productorId = this.value;
             
-            if (productorId) {
-                // Limpiar opciones
-                marcaSenalSelect.innerHTML = '<option value="">Cargando marcas/señales...</option>';
-                marcaSenalSelect.disabled = true;
-                
-                // Llamar a la API para obtener marcas del productor
-                fetch(`/ajax/marcas/${productorId}/`)
-                    .then(response => response.json())
-                    .then(data => {
-                        marcaSenalSelect.innerHTML = '<option value="">---------</option>';
-                        data.forEach(marca => {
-                            const option = document.createElement('option');
-                            option.value = marca.id;
-                            option.textContent = `Marca #${marca.numero_orden} - ${marca.descripcion_marca.substring(0, 50)}...`;
-                            marcaSenalSelect.appendChild(option);
-                        });
-                        
-                        // Re-activar si es necesario según el tipo de trámite
-                        if (tipoTramiteSelect) {
-                            toggleMarcaSenal(tipoTramiteSelect);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        marcaSenalSelect.innerHTML = '<option value="">Error al cargar marcas</option>';
-                        marcaSenalSelect.disabled = false;
-                    });
+            // Solo cargar marcas si el campo está habilitado (según tipo de trámite)
+            if (!marcaSenalSelect.disabled && productorId) {
+                cargarMarcasDelProductor(productorId);
             } else {
                 marcaSenalSelect.innerHTML = '<option value="">---------</option>';
-                marcaSenalSelect.disabled = true;
             }
         });
         
-        // Si ya hay un productor seleccionado (al editar), cargar sus marcas
-        if (productorSelect.value) {
-            productorSelect.dispatchEvent(new Event('change'));
+        // Si ya hay un productor seleccionado al cargar la página
+        if (productorSelect.value && !marcaSenalSelect.disabled) {
+            cargarMarcasDelProductor(productorSelect.value);
         }
     }
     
-    // Validar tamaño de archivos antes de enviar
-    document.getElementById('solicitudForm').addEventListener('submit', function(e) {
-        const archivos = document.querySelectorAll('input[type="file"]');
-        let archivosValidos = true;
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        
-        archivos.forEach(archivo => {
-            if (archivo.files.length > 0) {
-                const file = archivo.files[0];
-                if (file.size > maxSize) {
-                    alert(`El archivo "${file.name}" supera el tamaño máximo de 10MB.`);
-                    archivosValidos = false;
+    // Validar archivos antes de enviar
+    const form = document.getElementById('solicitudForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const archivos = this.querySelectorAll('input[type="file"]');
+            let archivosValidos = true;
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            
+            archivos.forEach(archivo => {
+                if (archivo.files.length > 0) {
+                    const file = archivo.files[0];
+                    if (file.size > maxSize) {
+                        alert(`El archivo "${file.name}" supera el tamaño máximo de 10MB.`);
+                        archivosValidos = false;
+                        archivo.value = ''; // Limpiar el input
+                    }
                 }
+            });
+            
+            if (!archivosValidos) {
+                e.preventDefault();
+                return false;
             }
+            
+            // Validar que si el tipo de trámite requiere marca, se haya seleccionado una
+            const tipo = tipoTramiteSelect.value;
+            const requiereMarca = ['RENOVACION', 'TRANSFERENCIA', 'BAJA', 'MODIFICACION'].includes(tipo);
+            const marcaSeleccionada = marcaSenalSelect.value;
+            
+            if (requiereMarca && !marcaSeleccionada) {
+                e.preventDefault();
+                alert('Para este tipo de trámite debe seleccionar una marca/señal.');
+                marcaSenalSelect.focus();
+                return false;
+            }
+            
+            return true;
         });
-        
-        if (!archivosValidos) {
-            e.preventDefault();
-        }
-    });
+    }
 });
 </script>
 {% endblock %}

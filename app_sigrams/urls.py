@@ -42,5 +42,8 @@ urlpatterns = [
     # URLs para AJAX
     path('ajax/campos/<int:productor_id>/', views.get_campos_por_productor, name='ajax_campos'),
     path('ajax/imagenes-marcas/', views.get_imagenes_marcas, name='ajax_imagenes_marcas'),
+    path('ajax/marcas/<int:productor_id>/', views.get_marcas_por_productor, name='ajax_marcas'),
+
+    path('reportes/ingresos/', views.reporte_ingresos, name='reporte_ingresos'),
 
 ]

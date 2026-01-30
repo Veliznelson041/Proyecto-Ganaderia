@@ -90,142 +90,200 @@ def get_imagenes_marcas(request):
         return JsonResponse({'error': str(e)}, status=400)
 
 
+def get_marcas_por_productor(request, productor_id):
+    """Obtener marcas de un productor específico (para AJAX)"""
+    try:
+        marcas = MarcaSenal.objects.filter(
+            productor_id=productor_id
+        ).values('id', 'numero_orden', 'descripcion_marca')
+        return JsonResponse(list(marcas), safe=False)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
 
 # app_sigrams/views.py - Actualizar función home
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+from django.utils import timezone
+from django.db.models import Count, Sum
+import datetime
+import json
+
+
 @login_required
 def home(request):
     """Vista principal del dashboard"""
     from app_registros.models import Productor, MarcaSenal, Solicitud, Campo
-    from django.db.models import Count, Q, Sum
-    from django.utils import timezone
-    import datetime
-    import json
-    
+
     hoy = timezone.now()
-    
+
     # ========== ESTADÍSTICAS BÁSICAS ==========
     total_productores = Productor.objects.count()
     total_marcas = MarcaSenal.objects.filter(estado='VIGENTE').count()
     solicitudes_pendientes = Solicitud.objects.filter(estado='PENDIENTE').count()
     total_campos = Campo.objects.count()
-    
-    # ========== ESTADÍSTICAS AVANZADAS ==========
-    # Ingresos por sellados (último mes)
+
+    # ========== INGRESOS ==========
+    # Primer día del mes actual
     primer_dia_mes = hoy.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    ingresos_mes = MarcaSenal.objects.filter(
-        fecha_creacion__gte=primer_dia_mes,
-        valor_sellado__isnull=False
-    ).aggregate(total=Sum('valor_sellado'))['total'] or 0
-    
-    # Trámites del mes actual
+
+    # Ingresos mes actual
+    ingresos_mes = (
+        MarcaSenal.objects.filter(
+            fecha_creacion__gte=primer_dia_mes,
+            valor_sellado__isnull=False
+        ).aggregate(total=Sum('valor_sellado'))['total']
+        or 0
+    )
+
+    # Ingresos mes anterior
+    primer_dia_mes_anterior = (primer_dia_mes - datetime.timedelta(days=1)).replace(day=1)
+    ultimo_dia_mes_anterior = primer_dia_mes - datetime.timedelta(days=1)
+
+    ingresos_mes_anterior = (
+        MarcaSenal.objects.filter(
+            fecha_creacion__gte=primer_dia_mes_anterior,
+            fecha_creacion__lte=ultimo_dia_mes_anterior,
+            valor_sellado__isnull=False
+        ).aggregate(total=Sum('valor_sellado'))['total']
+        or 0
+    )
+
+    # Variación porcentual
+    if ingresos_mes_anterior > 0:
+        variacion_ingresos = ((ingresos_mes - ingresos_mes_anterior) / ingresos_mes_anterior) * 100
+    else:
+        variacion_ingresos = 100 if ingresos_mes > 0 else 0
+
+    # ========== TRÁMITES ==========
     tramites_mes = Solicitud.objects.filter(
         fecha_solicitud__gte=primer_dia_mes
     ).count()
-    
+
     # ========== DISTRIBUCIONES ==========
-    # Productores por estado
-    productores_por_estado = list(Productor.objects.values('estado').annotate(
-        total=Count('id')
-    ).order_by('estado'))
-    
-    # Marcas por tipo de trámite
-    marcas_por_tipo = list(MarcaSenal.objects.values('tipo_tramite').annotate(
-        total=Count('id')
-    ).order_by('tipo_tramite'))
-    
-    # Solicitudes por estado
-    solicitudes_por_estado = list(Solicitud.objects.values('estado').annotate(
-        total=Count('id')
-    ).order_by('estado'))
-    
+    productores_por_estado = list(
+        Productor.objects.values('estado')
+        .annotate(total=Count('id'))
+        .order_by('estado')
+    )
+
+    marcas_por_tipo = list(
+        MarcaSenal.objects.values('tipo_tramite')
+        .annotate(total=Count('id'))
+        .order_by('tipo_tramite')
+    )
+
+    solicitudes_por_estado = list(
+        Solicitud.objects.values('estado')
+        .annotate(total=Count('id'))
+        .order_by('estado')
+    )
+
     # ========== DATOS RECIENTES ==========
-    # Últimas solicitudes (10)
-    ultimas_solicitudes = Solicitud.objects.select_related('productor').order_by('-fecha_solicitud')[:10]
-    
-    # Productores recientes (últimos 7 días)
+    ultimas_solicitudes = (
+        Solicitud.objects.select_related('productor')
+        .order_by('-fecha_solicitud')[:10]
+    )
+
     fecha_limite = hoy - datetime.timedelta(days=7)
-    productores_recientes = Productor.objects.filter(
-        fecha_registro__gte=fecha_limite
-    ).order_by('-fecha_registro')[:5]
-    
-    # Marcas próximas a vencer (próximos 30 días)
+    productores_recientes = (
+        Productor.objects.filter(fecha_registro__gte=fecha_limite)
+        .order_by('-fecha_registro')[:5]
+    )
+
     fecha_vencimiento = hoy + datetime.timedelta(days=30)
-    marcas_por_vencer = MarcaSenal.objects.filter(
-        fecha_vencimiento__gte=hoy,
-        fecha_vencimiento__lte=fecha_vencimiento,
-        estado='VIGENTE'
-    ).select_related('productor').order_by('fecha_vencimiento')[:5]
-    
-    # Marcas recientemente inscritas
-    marcas_recientes = MarcaSenal.objects.select_related('productor').order_by('-fecha_inscripcion')[:5]
-    
-    # ========== ACTIVIDAD DEL MES ==========
-    # Gráfico de actividad mensual
+    marcas_por_vencer = (
+        MarcaSenal.objects.filter(
+            fecha_vencimiento__gte=hoy,
+            fecha_vencimiento__lte=fecha_vencimiento,
+            estado='VIGENTE'
+        )
+        .select_related('productor')
+        .order_by('fecha_vencimiento')[:5]
+    )
+
+    marcas_recientes = (
+        MarcaSenal.objects.select_related('productor')
+        .order_by('-fecha_inscripcion')[:5]
+    )
+
+    # ========== ACTIVIDAD MENSUAL (ÚLTIMOS 6 MESES) ==========
     meses_actividad = []
+
     for i in range(6):
-        fecha = hoy - datetime.timedelta(days=30*i)
+        fecha = hoy - datetime.timedelta(days=30 * i)
         mes_str = fecha.strftime('%Y-%m')
         nombre_mes = fecha.strftime('%b')
-        
-        # Solicitudes del mes
+
         solicitudes_mes = Solicitud.objects.filter(
             fecha_solicitud__year=fecha.year,
             fecha_solicitud__month=fecha.month
         ).count()
-        
-        # Marcas del mes
+
         marcas_mes = MarcaSenal.objects.filter(
             fecha_inscripcion__year=fecha.year,
             fecha_inscripcion__month=fecha.month
         ).count()
-        
+
+        ingresos_mes_valor = (
+            MarcaSenal.objects.filter(
+                fecha_creacion__year=fecha.year,
+                fecha_creacion__month=fecha.month,
+                valor_sellado__isnull=False
+            ).aggregate(total=Sum('valor_sellado'))['total']
+            or 0
+        )
+
         meses_actividad.append({
             'mes': mes_str,
             'nombre': nombre_mes,
             'solicitudes': solicitudes_mes,
-            'marcas': marcas_mes
+            'marcas': marcas_mes,
+            'ingresos': float(ingresos_mes_valor)
         })
-    
-    meses_actividad.reverse()  # Para mostrar del más antiguo al más reciente
-    
-    # ========== TOP 5 PRODUCTORES CON MÁS MARCAS ==========
-    top_productores = Productor.objects.annotate(
-        total_marcas=Count('marcas_senales')
-    ).order_by('-total_marcas')[:5]
-    
+
+    meses_actividad.reverse()
+
+    # ========== TOP PRODUCTORES ==========
+    top_productores = (
+        Productor.objects.annotate(total_marcas=Count('marcas_senales'))
+        .order_by('-total_marcas')[:5]
+    )
+
     # ========== CONTEXT ==========
     context = {
-        # Estadísticas básicas
+        # Básicos
         'total_productores': total_productores,
         'total_marcas': total_marcas,
         'solicitudes_pendientes': solicitudes_pendientes,
         'total_campos': total_campos,
+
+        # Finanzas
         'ingresos_mes': ingresos_mes,
+        'ingresos_mes_anterior': ingresos_mes_anterior,
+        'variacion_ingresos': variacion_ingresos,
         'tramites_mes': tramites_mes,
-        
-        # Distribuciones
+
+        # Gráficos
         'productores_por_estado': json.dumps(productores_por_estado),
         'marcas_por_tipo': json.dumps(marcas_por_tipo),
         'solicitudes_por_estado': json.dumps(solicitudes_por_estado),
-        
-        # Datos recientes
+        'meses_actividad': json.dumps(meses_actividad),
+
+        # Listados
         'ultimas_solicitudes': ultimas_solicitudes,
         'productores_recientes': productores_recientes,
         'marcas_por_vencer': marcas_por_vencer,
         'marcas_recientes': marcas_recientes,
-        
-        # Actividad
-        'meses_actividad': json.dumps(meses_actividad),
-        
-        # Top productores
         'top_productores': top_productores,
-        
-        # Para badges
+
+        # Badges / listas
         'productores_estados_list': productores_por_estado,
         'marcas_tipos_list': marcas_por_tipo,
     }
-    
+
     return render(request, 'app_sigrams/index.html', context)
+
 
 
 
@@ -1159,3 +1217,50 @@ def get_puntos_mapa_json(request):
     }
     
     return JsonResponse(geojson)
+
+
+
+
+from django.db.models.functions import TruncMonth
+from django.db.models import Sum
+
+@login_required
+def reporte_ingresos(request):
+    """Reporte detallado de ingresos por sellados"""
+    # Filtros
+    año = request.GET.get('año', datetime.datetime.now().year)
+    mes = request.GET.get('mes', '')
+    
+    # Obtener ingresos por mes
+    ingresos_por_mes = MarcaSenal.objects.filter(
+        valor_sellado__isnull=False
+    ).annotate(
+        mes=TruncMonth('fecha_creacion')
+    ).values('mes').annotate(
+        total=Sum('valor_sellado'),
+        cantidad=Count('id')
+    ).order_by('-mes')
+    
+    # Filtrar por año si se especifica
+    if año:
+        ingresos_por_mes = ingresos_por_mes.filter(fecha_creacion__year=año)
+    
+    # Filtrar por mes si se especifica
+    if mes:
+        ingresos_por_mes = ingresos_por_mes.filter(fecha_creacion__month=mes)
+    
+    # Total general
+    total_general = ingresos_por_mes.aggregate(total=Sum('total'))['total'] or 0
+    
+    # Obtener años disponibles para el filtro
+    años_disponibles = MarcaSenal.objects.dates('fecha_creacion', 'year')
+    
+    context = {
+        'ingresos_por_mes': list(ingresos_por_mes),
+        'total_general': total_general,
+        'año_seleccionado': año,
+        'mes_seleccionado': mes,
+        'años_disponibles': años_disponibles,
+    }
+    
+    return render(request, 'app_sigrams/reportes/ingresos.html', context)
