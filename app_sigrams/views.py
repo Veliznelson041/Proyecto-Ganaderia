@@ -90,15 +90,42 @@ def get_imagenes_marcas(request):
         return JsonResponse({'error': str(e)}, status=400)
 
 
+from django.http import JsonResponse
+from app_registros.models import MarcaSenal, Productor
+import json
+
 def get_marcas_por_productor(request, productor_id):
     """Obtener marcas de un productor específico (para AJAX)"""
     try:
-        marcas = MarcaSenal.objects.filter(
-            productor_id=productor_id
-        ).values('id', 'numero_orden', 'descripcion_marca')
-        return JsonResponse(list(marcas), safe=False)
+        print(f"DEBUG SERVIDOR: Solicitando marcas para productor_id={productor_id}")
+        
+        # Verificar que el productor existe
+        if not Productor.objects.filter(id=productor_id).exists():
+            return JsonResponse([], safe=False)
+        
+        # Obtener marcas del productor
+        marcas = MarcaSenal.objects.filter(productor_id=productor_id).order_by('-fecha_inscripcion')
+        
+        # Preparar datos para JSON
+        data = []
+        for marca in marcas:
+            data.append({
+                'id': marca.id,
+                'numero_orden': marca.numero_orden,
+                'descripcion_marca': marca.descripcion_marca,
+                'tipo_tramite': marca.get_tipo_tramite_display(),
+                'estado': marca.get_estado_display(),
+                'fecha_inscripcion': marca.fecha_inscripcion.strftime('%d/%m/%Y') if marca.fecha_inscripcion else 'No especificada',
+            })
+        
+        print(f"DEBUG SERVIDOR: Enviando {len(data)} marcas")
+        return JsonResponse(data, safe=False)
+        
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
+        print(f"ERROR SERVIDOR en get_marcas_por_productor: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse([{'error': str(e)}], safe=False, status=500)
 
 
 # app_sigrams/views.py - Actualizar función home
@@ -890,21 +917,73 @@ def lista_solicitudes(request):
     }
     return render(request, 'app_sigrams/solicitudes/lista.html', context)
 
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, render, redirect
+from django.contrib import messages
+
+from app_registros.models import Solicitud, UserProfile
+from app_registros.forms import DocumentoSolicitudFormSet
+
+
 @login_required
 def detalle_solicitud(request, pk):
-    """Detalle de una solicitud específica"""
-    solicitud = get_object_or_404(Solicitud.objects.select_related(
-        'productor', 'marca_senal', 'solicitante', 'revisor', 'aprobador'
-    ), pk=pk)
-    
-    # Verificar permisos
+    """Detalle de una solicitud específica con gestión de documentos"""
+
+    solicitud = get_object_or_404(
+        Solicitud.objects.select_related(
+            'productor',
+            'marca_senal',
+            'solicitante',
+            'revisor',
+            'aprobador'
+        ),
+        pk=pk
+    )
+
+    # Perfil del usuario (lo mantenemos de tu código)
     user_profile = UserProfile.objects.get(user=request.user)
-    
+
+    # =========================
+    # FORMSET DE DOCUMENTOS
+    # =========================
+    documento_formset = DocumentoSolicitudFormSet(
+        instance=solicitud,
+        queryset=solicitud.documentos.all().order_by('-fecha_subida')
+    )
+
+    # =========================
+    # PROCESAR POST (DOCUMENTOS)
+    # =========================
+    if request.method == 'POST' and 'documentos' in request.POST:
+        documento_formset = DocumentoSolicitudFormSet(
+            request.POST,
+            request.FILES,
+            instance=solicitud
+        )
+
+        if documento_formset.is_valid():
+            instancias = documento_formset.save(commit=False)
+
+            for instancia in instancias:
+                if instancia.archivo:
+                    instancia.usuario_subida = request.user
+                    instancia.save()
+
+            documento_formset.save()
+            messages.success(request, 'Documentos actualizados correctamente.')
+            return redirect('detalle_solicitud', pk=pk)
+
+    # =========================
+    # CONTEXTO
+    # =========================
     context = {
         'solicitud': solicitud,
         'user_profile': user_profile,
+        'documento_formset': documento_formset,
     }
+
     return render(request, 'app_sigrams/solicitudes/detalle.html', context)
+
 
 @login_required
 def nueva_solicitud(request):
@@ -1264,3 +1343,52 @@ def reporte_ingresos(request):
     }
     
     return render(request, 'app_sigrams/reportes/ingresos.html', context)
+
+
+def test_marcas_view(request):
+    """Vista temporal para testear la obtención de marcas"""
+    from app_registros.models import Productor, MarcaSenal
+    
+    # Listar todos los productores con sus marcas
+    productores = Productor.objects.all().prefetch_related('marcas_senales')
+    
+    result = []
+    for productor in productores:
+        result.append({
+            'id': productor.id,
+            'nombre': productor.nombre_completo,
+            'dni': productor.dni,
+            'total_marcas': productor.marcas_senales.count(),
+            'marcas': [
+                {
+                    'id': m.id,
+                    'numero_orden': m.numero_orden,
+                    'descripcion': m.descripcion_marca[:50] + '...' if len(m.descripcion_marca) > 50 else m.descripcion_marca
+                }
+                for m in productor.marcas_senales.all()[:5]  # Mostrar solo 5
+            ]
+        })
+    
+    return JsonResponse(result, safe=False)    
+
+
+@login_required
+def eliminar_documento(request, documento_id):
+    """Eliminar un documento adjunto"""
+    documento = get_object_or_404(DocumentoSolicitud, id=documento_id)
+    
+    # Verificar permisos
+    if documento.usuario_subida != request.user and not UserProfile.objects.get(user=request.user).rol == 'admin':
+        messages.error(request, 'No tiene permisos para eliminar este documento.')
+        return redirect('detalle_solicitud', pk=documento.solicitud.pk)
+    
+    # Eliminar archivo físico
+    documento.archivo.delete(save=False)
+    
+    # Eliminar registro
+    solicitud_pk = documento.solicitud.pk
+    documento.delete()
+    
+    messages.success(request, 'Documento eliminado correctamente.')
+    return redirect('detalle_solicitud', pk=solicitud_pk)
+

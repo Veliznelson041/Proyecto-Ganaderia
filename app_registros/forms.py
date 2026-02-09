@@ -433,6 +433,7 @@ class MarcaSenalForm(forms.ModelForm):
 
 from django.core.validators import FileExtensionValidator
 from datetime import timedelta
+from django.utils import timezone
 
 class SolicitudForm(forms.ModelForm):
     # Campos con validaciones específicas
@@ -487,8 +488,8 @@ class SolicitudForm(forms.ModelForm):
             }),
             'tipo_tramite': forms.Select(attrs={
                 'class': 'form-control',
-                'required': 'required',
-                'onchange': 'toggleMarcaSenal(this)'
+                'required': 'required'
+                #'onchange': 'toggleMarcaSenal(this)'
             }),
             'marca_senal': forms.Select(attrs={
                 'class': 'form-control',
@@ -580,3 +581,29 @@ class SolicitudRevisionForm(forms.ModelForm):
                 'type': 'datetime-local'
             }),
         }
+
+
+
+from django import forms
+from .models import DocumentoSolicitud
+
+class DocumentoSolicitudForm(forms.ModelForm):
+    class Meta:
+        model = DocumentoSolicitud
+        fields = ['tipo_documento', 'nombre', 'archivo', 'observaciones']
+        widgets = {
+            'tipo_documento': forms.Select(attrs={'class': 'form-control'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'archivo': forms.FileInput(attrs={'class': 'form-control'}),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+
+# Formset para múltiples documentos
+DocumentoSolicitudFormSet = forms.inlineformset_factory(
+    Solicitud,
+    DocumentoSolicitud,
+    form=DocumentoSolicitudForm,
+    extra=1,
+    can_delete=True,
+    max_num=10
+)
