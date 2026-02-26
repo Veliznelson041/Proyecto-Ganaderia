@@ -326,6 +326,7 @@ def home(request):
     return render(request, 'app_sigrams/index.html', context)
 
 
+from django.db.models.functions import TruncMonth
 from django.db.models import Count, Sum
 from django.utils import timezone
 from datetime import timedelta
