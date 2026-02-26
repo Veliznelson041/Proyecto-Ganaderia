@@ -24,10 +24,24 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from django.http import HttpResponse
+
+
+import datetime
+from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required
+from django.db.models import Sum, Count
+from django.db.models.functions import TruncMonth
+
+from reportlab.lib.pagesizes import landscape, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+
 # Create your views here.
 
-
-# app_sigrams/views.py - Agregar estas funciones al inicio
 from django.http import JsonResponse
 import json
 
@@ -1499,11 +1513,12 @@ from django.db.models import Sum
 
 @login_required
 def reporte_ingresos(request):
+    export = request.GET.get('export')
+
     # Filtros
     año = request.GET.get('año', datetime.datetime.now().year)
     mes = request.GET.get('mes', '')
 
-    # Base queryset
     ingresos_qs = MarcaSenal.objects.filter(valor_sellado__isnull=False)
 
     if año:
@@ -1511,7 +1526,13 @@ def reporte_ingresos(request):
     if mes:
         ingresos_qs = ingresos_qs.filter(fecha_creacion__month=mes)
 
-    # Ingresos agrupados por mes (para la tabla)
+    # 🔥 SI ES EXPORTACIÓN
+    if export == 'pdf':
+        return exportar_ingresos_pdf(ingresos_qs)
+    elif export == 'excel':
+        return exportar_ingresos_excel(ingresos_qs)
+
+    # --- Vista HTML normal ---
     ingresos_por_mes = ingresos_qs.annotate(
         mes=TruncMonth('fecha_creacion')
     ).values('mes').annotate(
@@ -1519,14 +1540,11 @@ def reporte_ingresos(request):
         cantidad=Count('id')
     ).order_by('-mes')
 
-    # Ingresos detallados por marca (para exportar)
-    ingresos_detalle = ingresos_qs.select_related('productor').order_by('-fecha_creacion')[:100]  # últimos 100
+    ingresos_detalle = ingresos_qs.select_related('productor').order_by('-fecha_creacion')[:100]
 
-    # Totales
     total_general = ingresos_qs.aggregate(total=Sum('valor_sellado'))['total'] or 0
     cantidad_total = ingresos_qs.count()
 
-    # Años disponibles para filtro
     años_disponibles = MarcaSenal.objects.dates('fecha_creacion', 'year')
 
     context = {
@@ -1538,7 +1556,103 @@ def reporte_ingresos(request):
         'mes_seleccionado': mes,
         'años_disponibles': años_disponibles,
     }
+
     return render(request, 'app_sigrams/reportes/ingresos.html', context)
+
+
+def exportar_ingresos_pdf(queryset):
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="ingresos.pdf"'
+
+    doc = SimpleDocTemplate(response, pagesize=landscape(A4))
+    elements = []
+    styles = getSampleStyleSheet()
+
+    elements.append(Paragraph("Reporte de Ingresos - SIGRAMS", styles['Title']))
+    elements.append(Spacer(1, 12))
+    elements.append(
+        Paragraph(
+            f"Generado: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}",
+            styles['Normal']
+        )
+    )
+    elements.append(Spacer(1, 24))
+
+    datos = queryset.select_related('productor').order_by('-fecha_creacion')[:500]
+
+    data = [['Fecha', 'N° Orden', 'Productor', 'Tipo Trámite', 'Valor']]
+
+    for m in datos:
+        data.append([
+            m.fecha_creacion.strftime('%d/%m/%Y %H:%M'),
+            str(m.numero_orden),
+            m.productor.nombre_completo[:40],
+            m.get_tipo_tramite_display(),
+            f"${m.valor_sellado}"
+        ])
+
+    table = Table(data)
+
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0A2E5A')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 10),
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+        ('FONTSIZE', (0,1), (-1,-1), 8),
+    ]))
+
+    elements.append(table)
+    doc.build(elements)
+
+    return response
+
+
+def exportar_ingresos_excel(queryset):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Ingresos"
+
+    headers = ['Fecha', 'N° Orden', 'Productor', 'Tipo Trámite', 'Valor']
+    ws.append(headers)
+
+    for col in range(1, len(headers)+1):
+        cell = ws.cell(row=1, column=col)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="0A2E5A", end_color="0A2E5A", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center")
+
+    datos = queryset.select_related('productor').order_by('-fecha_creacion')[:500]
+
+    for m in datos:
+        ws.append([
+            m.fecha_creacion.strftime('%d/%m/%Y %H:%M'),
+            m.numero_orden,
+            m.productor.nombre_completo,
+            m.get_tipo_tramite_display(),
+            float(m.valor_sellado) if m.valor_sellado else 0
+        ])
+
+    # Ajustar ancho columnas
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        ws.column_dimensions[col_letter].width = min(max_length + 2, 50)
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="ingresos.xlsx"'
+
+    wb.save(response)
+    return response
 
 
 def test_marcas_view(request):
