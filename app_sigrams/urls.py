@@ -78,4 +78,19 @@ urlpatterns = [
 
     path('documentos/<int:documento_id>/eliminar/', views.eliminar_documento, name='eliminar_documento'),
 
+    # Rutas para reportes PDF y Excel
+    path('reportes/productores/pdf/', views.reporte_productores_pdf, name='reporte_productores_pdf'),
+    path('reportes/marcas/pdf/', views.reporte_marcas_pdf, name='reporte_marcas_pdf'),
+    path('reportes/solicitudes/pdf/', views.reporte_solicitudes_pdf, name='reporte_solicitudes_pdf'),
+    path('reportes/productores/excel/', views.reporte_productores_excel, name='reporte_productores_excel'),
+    path('reportes/marcas/excel/', views.reporte_marcas_excel, name='reporte_marcas_excel'),
+    path('reportes/solicitudes/excel/', views.reporte_solicitudes_excel, name='reporte_solicitudes_excel'),
+
+    # Ruta para el dashboard del administrador
+    path('admin-dashboard/', views.dashboard_admin, name='dashboard_admin'),
+    
+    # Rutas para reportes de usuarios (solo para admin)
+    path('reporte/usuarios/pdf/', views.reporte_usuarios_pdf, name='reporte_usuarios_pdf'),
+    path('reporte/usuarios/excel/', views.reporte_usuarios_excel, name='reporte_usuarios_excel'),
+
 ]

@@ -164,22 +164,68 @@
             </a>
             
             <div class="navbar-nav ms-auto">
-                {% if user.is_authenticated %}
-                    <span class="navbar-text me-3">
-                        Hola, <strong>{{ user.username }}</strong>
-                    </span>
-                    <a class="btn btn-outline-light btn-sm" href="{% url 'logout' %}">
-                        Cerrar sesión
+    {% if user.is_authenticated %}
+
+        <!-- Campana de notificaciones -->
+        <div class="nav-item dropdown me-3">
+            <a class="nav-link dropdown-toggle" href="#" id="notificacionesDropdown"
+               role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                🔔 
+                <span id="contador-notificaciones" class="badge bg-danger rounded-pill">0</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="notificacionesDropdown"
+                style="min-width: 350px; max-height: 400px; overflow-y: auto;">
+                
+                <li><h6 class="dropdown-header">Notificaciones recientes</h6></li>
+                
+                <li>
+                    <div id="lista-notificaciones-dropdown">
+                        <div class="dropdown-item text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                
+                <li><hr class="dropdown-divider"></li>
+                
+                <li>
+                    <a class="dropdown-item text-center" href="{% url 'lista_notificaciones' %}">
+                        <strong>Ver todas las notificaciones</strong>
                     </a>
-                {% else %}
-                    <a class="btn btn-outline-light btn-sm me-2" href="{% url 'login' %}">
-                        Iniciar sesión
+                </li>
+                
+                <li>
+                    <a class="dropdown-item text-center text-success"
+                       href="#" id="marcar-todas-leidas">
+                        ✅ Marcar todas como leídas
                     </a>
-                    <a class="btn btn-light btn-sm" href="{% url 'register' %}">
-                        Registrarse
-                    </a>
-                {% endif %}
-            </div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Usuario -->
+        <span class="navbar-text me-3">
+            Hola, <strong>{{ user.username }}</strong>
+        </span>
+
+        <!-- Logout -->
+        <a class="btn btn-outline-light btn-sm" href="{% url 'logout' %}">
+            Cerrar sesión
+        </a>
+
+    {% else %}
+        <a class="btn btn-outline-light btn-sm me-2" href="{% url 'login' %}">
+            Iniciar sesión
+        </a>
+        <a class="btn btn-light btn-sm" href="{% url 'register' %}">
+            Registrarse
+        </a>
+    {% endif %}
+</div>
+
         </div>
     </nav>
 
@@ -208,8 +254,18 @@
                 <a class="nav-link text-dark mb-2" href="{% url 'lista_solicitudes' %}">
                     📋 Solicitudes
                 </a>
+
+                <a class="nav-link text-dark mb-2" href="{% url 'reporte_ingresos' %}">
+                    <i class="fas fa-dollar-sign me-2"></i> Reporte de Ingresos
+                </a>
                 
-                {% if user.is_staff %}
+                {% if user_profile.rol == 'admin' %}
+                <a class="nav-link text-dark mb-2" href="{% url 'dashboard_admin' %}">
+                    📊 Dashboard Admin
+                </a>
+                {% endif %}
+                
+                {% if user_profile and user_profile.rol == 'admin' %}
                 <div class="dropdown-divider"></div>
                 <small class="text-muted mb-2">ADMINISTRACIÓN</small>
                 <a class="nav-link text-dark mb-2" href="/admin/" target="_blank">
@@ -262,6 +318,197 @@
     <!-- Bloque para scripts específicos de cada template (ej: el código del mapa) -->
     {% block scripts %}{% endblock %}
 <script src="{% static 'js/validaciones.js' %}"></script>
+<script>
+// Función para actualizar el contador de notificaciones
+function actualizarContadorNotificaciones() {
+    fetch('/notificaciones/api/contador/')
+        .then(response => response.json())
+        .then(data => {
+            const contador = document.getElementById('contador-notificaciones');
+            if (contador) {
+                contador.textContent = data.count;
+                if (data.count > 0) {
+                    contador.classList.remove('d-none');
+                    // Hacer parpadear la campana si hay notificaciones nuevas
+                    const campana = document.querySelector('[data-bs-toggle="dropdown"]');
+                    if (campana && !campana.classList.contains('parpadeo')) {
+                        campana.classList.add('parpadeo');
+                    }
+                } else {
+                    contador.classList.add('d-none');
+                    const campana = document.querySelector('[data-bs-toggle="dropdown"]');
+                    if (campana) {
+                        campana.classList.remove('parpadeo');
+                    }
+                }
+            }
+        })
+        .catch(error => console.error('Error al obtener contador:', error));
+}
+
+// Función para cargar notificaciones en el dropdown
+function cargarNotificacionesDropdown() {
+    fetch('/notificaciones/api/no-leidas/')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('lista-notificaciones-dropdown');
+            if (container) {
+                if (data.notificaciones.length === 0) {
+                    container.innerHTML = `
+                        <div class="dropdown-item text-center py-3">
+                            <p class="text-muted mb-0">No tienes notificaciones nuevas</p>
+                        </div>
+                    `;
+                } else {
+                    let html = '';
+                    data.notificaciones.forEach(notif => {
+                        const icono = {
+                            'info': 'ℹ️',
+                            'alerta': '⚠️',
+                            'urgente': '🚨',
+                            'exito': '✅',
+                            'error': '❌'
+                        }[notif.tipo] || '📢';
+                        
+                        html += `
+                            <a href="${notif.url}" class="dropdown-item ${notif.es_reciente ? 'bg-light' : ''}" 
+                               onclick="marcarNotificacionLeida(${notif.id}, event)">
+                                <div class="d-flex w-100">
+                                    <div class="me-2">${icono}</div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between">
+                                            <strong class="mb-1">${notif.titulo}</strong>
+                                            <small class="text-muted">${notif.tiempo}</small>
+                                        </div>
+                                        <p class="mb-0 small text-truncate">${notif.mensaje}</p>
+                                    </div>
+                                </div>
+                            </a>
+                            <div class="dropdown-divider"></div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                }
+            }
+        })
+        .catch(error => console.error('Error al cargar notificaciones:', error));
+}
+
+// Función para marcar una notificación como leída
+function marcarNotificacionLeida(notificacionId, event) {
+    event.preventDefault();
+    const url = event.target.getAttribute('href');
+    
+    fetch(`/notificaciones/${notificacionId}/leida/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Actualizar contador
+            actualizarContadorNotificaciones();
+            // Redirigir a la URL
+            if (url && url !== '#') {
+                window.location.href = url;
+            }
+        }
+    })
+    .catch(error => console.error('Error al marcar como leída:', error));
+}
+
+// Función para marcar todas como leídas
+document.getElementById('marcar-todas-leidas')?.addEventListener('click', function(e) {
+    e.preventDefault();
+    
+    fetch('/notificaciones/marcar-todas-leidas/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            actualizarContadorNotificaciones();
+            cargarNotificacionesDropdown();
+            // Mostrar mensaje de éxito
+            showToast('Todas las notificaciones marcadas como leídas', 'success');
+        }
+    })
+    .catch(error => console.error('Error al marcar todas como leídas:', error));
+});
+
+// Helper para obtener cookie CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Función para mostrar toasts
+function showToast(message, type = 'info') {
+    const toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) return;
+    
+    const toastId = 'toast-' + Date.now();
+    const toastHtml = `
+        <div id="${toastId}" class="toast" role="alert">
+            <div class="toast-header bg-${type} text-white">
+                <strong class="me-auto">Notificación</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">${message}</div>
+        </div>
+    `;
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    const toast = new bootstrap.Toast(document.getElementById(toastId));
+    toast.show();
+    
+    // Remover después de 5 segundos
+    setTimeout(() => {
+        document.getElementById(toastId)?.remove();
+    }, 5000);
+}
+
+// Cargar notificaciones al abrir el dropdown
+document.getElementById('notificacionesDropdown')?.addEventListener('shown.bs.dropdown', function () {
+    cargarNotificacionesDropdown();
+});
+
+// Actualizar contador cada 30 segundos
+if (window.location.pathname !== '/notificaciones/') {
+    actualizarContadorNotificaciones();
+    setInterval(actualizarContadorNotificaciones, 30000); // Actualizar cada 30 segundos
+}
+
+// Estilos CSS para el parpadeo
+const style = document.createElement('style');
+style.textContent = `
+    .parpadeo {
+        animation: parpadeo 1s infinite;
+    }
+    @keyframes parpadeo {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+`;
+document.head.appendChild(style);
+</script>
 </body>
 </html>
 

@@ -258,16 +258,20 @@ from .models import (
 from .validators import NumeroOrdenValidator
 
 
+from django import forms
+from datetime import date
+from .models import MarcaSenal, ImagenMarcaPredefinida, TipoSenal, Campo, Solicitud
+
 class MarcaSenalForm(forms.ModelForm):
 
-    numero_orden = forms.IntegerField(
-        validators=[NumeroOrdenValidator(MarcaSenal)],
-        widget=forms.NumberInput(attrs={
-            'class': 'form-control',
-            'required': 'required',
-            'min': '1',
-            'placeholder': '123'
-        })
+    # 🔹 MANY TO MANY
+    imagenes_predefinidas = forms.ModelMultipleChoiceField(
+        queryset=ImagenMarcaPredefinida.objects.filter(activa=True),
+        widget=forms.CheckboxSelectMultiple(attrs={
+            'class': 'imagen-checkbox'
+        }),
+        required=False,
+        label="Seleccionar imágenes predefinidas"
     )
 
     fecha_inscripcion = forms.DateField(
@@ -317,7 +321,7 @@ class MarcaSenalForm(forms.ModelForm):
         })
     )
 
-    # Campos de ganado
+    # 🔹 Campos de ganado
     def ganado_field():
         return forms.IntegerField(
             required=False,
@@ -340,15 +344,10 @@ class MarcaSenalForm(forms.ModelForm):
 
     class Meta:
         model = MarcaSenal
-        fields = [
-            'productor', 'campo', 'tipo_tramite', 'numero_orden',
-            'fecha_inscripcion', 'fecha_vencimiento',
-            'descripcion_marca', 'imagen_marca', 'imagen_predefinida',
-            'tipo_senal', 'descripcion_senal',
-            'vacuno', 'caballar', 'mular', 'asnal', 'ovino', 'cabrio',
-            'valor_sellado', 'estado', 'observaciones',
-            'imagen_carnet_frente', 'imagen_carnet_dorso'
-        ]
+
+        # 🔥 SACAMOS numero_orden
+        exclude = ['numero_orden']
+
         widgets = {
             'productor': forms.Select(attrs={'class': 'form-control', 'required': 'required'}),
             'campo': forms.Select(attrs={'class': 'form-control', 'required': 'required'}),
@@ -359,24 +358,17 @@ class MarcaSenalForm(forms.ModelForm):
             'imagen_marca': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
             'imagen_carnet_frente': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
             'imagen_carnet_dorso': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
-            'imagen_predefinida': forms.Select(attrs={
-                'class': 'form-control d-done',
-                'id': 'id_imagen_predefinida_form'
-            }),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Tipo señal
         self.fields['tipo_senal'].queryset = TipoSenal.objects.all()
         self.fields['tipo_senal'].empty_label = "Seleccione un tipo de señal"
 
-        # Imagen predefinida
-        self.fields['imagen_predefinida'].queryset = (
+        self.fields['imagenes_predefinidas'].queryset = (
             ImagenMarcaPredefinida.objects.filter(activa=True)
         )
-        self.fields['imagen_predefinida'].required = False
 
         # Filtrar campos por productor
         if 'productor' in self.data:
@@ -392,7 +384,6 @@ class MarcaSenalForm(forms.ModelForm):
         else:
             self.fields['campo'].queryset = Campo.objects.none()
 
-        # Help text
         self.fields['campo'].help_text = 'Primero seleccione un productor'
         self.fields['valor_sellado'].help_text = 'Valor en pesos argentinos'
         self.fields['descripcion_marca'].help_text = 'Mínimo 10 caracteres'
@@ -411,7 +402,6 @@ class MarcaSenalForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
-        # Validar descripción mínima
         descripcion = cleaned_data.get('descripcion_marca', '')
         if len(descripcion.strip()) < 10:
             self.add_error(
@@ -419,7 +409,6 @@ class MarcaSenalForm(forms.ModelForm):
                 'La descripción debe tener al menos 10 caracteres.'
             )
 
-        # Validar ganado mínimo
         tipos = ['vacuno', 'caballar', 'mular', 'asnal', 'ovino', 'cabrio']
         total = sum(cleaned_data.get(t, 0) or 0 for t in tipos)
 
@@ -431,12 +420,16 @@ class MarcaSenalForm(forms.ModelForm):
         return cleaned_data
 
 
+
+from django import forms
 from django.core.validators import FileExtensionValidator
-from datetime import timedelta
 from django.utils import timezone
+from datetime import timedelta
+from .models import Solicitud, MarcaSenal
+
 
 class SolicitudForm(forms.ModelForm):
-    # Campos con validaciones específicas
+
     motivo = forms.CharField(
         widget=forms.Textarea(attrs={
             'class': 'form-control',
@@ -447,7 +440,7 @@ class SolicitudForm(forms.ModelForm):
             'title': 'Mínimo 20 caracteres'
         })
     )
-    
+
     observaciones = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
@@ -456,7 +449,7 @@ class SolicitudForm(forms.ModelForm):
             'placeholder': 'Observaciones adicionales...'
         })
     )
-    
+
     fecha_vencimiento = forms.DateTimeField(
         required=False,
         widget=forms.DateTimeInput(attrs={
@@ -464,22 +457,31 @@ class SolicitudForm(forms.ModelForm):
             'type': 'datetime-local'
         })
     )
-    
+
     documento_adjunto = forms.FileField(
         required=False,
-        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'])],
+        validators=[FileExtensionValidator(
+            allowed_extensions=['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx']
+        )],
         widget=forms.FileInput(attrs={
             'class': 'form-control',
             'accept': '.pdf,.jpg,.jpeg,.png,.doc,.docx'
         })
     )
-    
+
     class Meta:
         model = Solicitud
         fields = [
-            'productor', 'tipo_tramite', 'marca_senal', 'prioridad', 
-            'motivo', 'observaciones', 'documento_adjunto',
-            'imagen_adicional_1', 'imagen_adicional_2', 'fecha_vencimiento'
+            'productor',
+            'tipo_tramite',
+            'marca_senal',
+            'prioridad',
+            'motivo',
+            'observaciones',
+            'documento_adjunto',
+            'imagen_adicional_1',
+            'imagen_adicional_2',
+            'fecha_vencimiento'
         ]
         widgets = {
             'productor': forms.Select(attrs={
@@ -489,11 +491,9 @@ class SolicitudForm(forms.ModelForm):
             'tipo_tramite': forms.Select(attrs={
                 'class': 'form-control',
                 'required': 'required'
-                #'onchange': 'toggleMarcaSenal(this)'
             }),
             'marca_senal': forms.Select(attrs={
-                'class': 'form-control',
-                'disabled': 'disabled'
+                'class': 'form-control'
             }),
             'prioridad': forms.Select(attrs={
                 'class': 'form-control'
@@ -507,60 +507,85 @@ class SolicitudForm(forms.ModelForm):
                 'accept': 'image/*'
             }),
         }
-    
+
+    # ==============================
+    # INIT CORREGIDO
+    # ==============================
     def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)
+        self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        
-        # Filtrar marcas/señales según el productor seleccionado
+
+        # Filtrar marcas según productor seleccionado
         if 'productor' in self.data:
             try:
                 productor_id = int(self.data.get('productor'))
-                self.fields['marca_senal'].queryset = MarcaSenal.objects.filter(productor_id=productor_id)
+                self.fields['marca_senal'].queryset = MarcaSenal.objects.filter(
+                    productor_id=productor_id
+                )
             except (ValueError, TypeError):
                 self.fields['marca_senal'].queryset = MarcaSenal.objects.none()
         elif self.instance.pk and self.instance.productor:
-            self.fields['marca_senal'].queryset = self.instance.productor.marcas_senales.all()
+            self.fields['marca_senal'].queryset = (
+                self.instance.productor.marcas_senales.all()
+            )
         else:
             self.fields['marca_senal'].queryset = MarcaSenal.objects.none()
-        
-        # Establecer fecha de vencimiento por defecto (7 días)
+
+        # Fecha vencimiento por defecto (solo al crear)
         if not self.instance.pk:
-            from django.utils import timezone
-            self.fields['fecha_vencimiento'].initial = timezone.now() + timedelta(days=7)
-    
+            self.fields['fecha_vencimiento'].initial = (
+                timezone.now() + timedelta(days=7)
+            )
+
+    # ==============================
+    # VALIDACIONES
+    # ==============================
     def clean(self):
         cleaned_data = super().clean()
         tipo_tramite = cleaned_data.get('tipo_tramite')
         marca_senal = cleaned_data.get('marca_senal')
-        
-        # Validaciones según el tipo de trámite
+        fecha_vencimiento = cleaned_data.get('fecha_vencimiento')
+        documento_adjunto = cleaned_data.get('documento_adjunto')
+
+        # Validación de marca/señal obligatoria según tipo
         if tipo_tramite in ['RENOVACION', 'TRANSFERENCIA', 'BAJA', 'MODIFICACION']:
             if not marca_senal:
-                self.add_error('marca_senal', 'Para este tipo de trámite debe seleccionar una marca/señal.')
-        
-        # Validar que la fecha de vencimiento sea futura
-        fecha_vencimiento = cleaned_data.get('fecha_vencimiento')
+                self.add_error(
+                    'marca_senal',
+                    'Para este tipo de trámite debe seleccionar una marca/señal.'
+                )
+
+        # Validar fecha futura
         if fecha_vencimiento and fecha_vencimiento < timezone.now():
-            self.add_error('fecha_vencimiento', 'La fecha de vencimiento debe ser futura.')
-        
-        # Validar tamaño de archivos
-        documento_adjunto = cleaned_data.get('documento_adjunto')
-        if documento_adjunto and documento_adjunto.size > 10 * 1024 * 1024:  # 10MB
-            self.add_error('documento_adjunto', 'El documento no puede superar los 10MB.')
-        
+            self.add_error(
+                'fecha_vencimiento',
+                'La fecha de vencimiento debe ser futura.'
+            )
+
+        # Validar tamaño archivo (10MB)
+        if documento_adjunto:
+            if documento_adjunto.size > 10 * 1024 * 1024:
+                self.add_error(
+                    'documento_adjunto',
+                    'El documento no puede superar los 10MB.'
+                )
+
         return cleaned_data
-    
+
+    # ==============================
+    # SAVE CORREGIDO
+    # ==============================
     def save(self, commit=True):
         solicitud = super().save(commit=False)
-        
-        # Asignar el solicitante actual
-        if not solicitud.pk:
+
+        # Asignar solicitante si es nueva
+        if not solicitud.pk and self.user:
             solicitud.solicitante = self.user
-        
+
         if commit:
             solicitud.save()
-        
+            self.save_m2m()
+
         return solicitud
 
 

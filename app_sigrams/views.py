@@ -312,6 +312,68 @@ def home(request):
     return render(request, 'app_sigrams/index.html', context)
 
 
+from django.db.models import Count, Sum
+from django.utils import timezone
+from datetime import timedelta
+
+@login_required
+def dashboard_admin(request):
+    user_profile = UserProfile.objects.get(user=request.user)
+    if user_profile.rol != 'admin':
+        messages.error(request, 'No tiene permisos para acceder.')
+        return redirect('home')
+
+    # Usuarios
+    total_usuarios = User.objects.count()
+    admins = UserProfile.objects.filter(rol='admin').count()
+    empleados = UserProfile.objects.filter(rol='empleado').count()
+
+    # Solicitudes
+    total_solicitudes = Solicitud.objects.count()
+    solicitudes_pendientes = Solicitud.objects.filter(estado='PENDIENTE').count()
+    solicitudes_en_revision = Solicitud.objects.filter(estado='EN_REVISION').count()
+    solicitudes_aprobadas = Solicitud.objects.filter(estado='APROBADO').count()
+    solicitudes_rechazadas = Solicitud.objects.filter(estado='RECHAZADO').count()
+
+    # Productores y Marcas
+    total_productores = Productor.objects.count()
+    total_marcas = MarcaSenal.objects.count()
+
+    # Ingresos (últimos 12 meses)
+    hoy = timezone.now()
+    doce_meses = hoy - timedelta(days=365)
+    ingresos_por_mes = (
+        MarcaSenal.objects
+        .filter(fecha_creacion__gte=doce_meses, valor_sellado__isnull=False)
+        .annotate(mes=TruncMonth('fecha_creacion'))
+        .values('mes')
+        .annotate(total=Sum('valor_sellado'))
+        .order_by('mes')
+    )
+
+    # Logs recientes (últimos 20)
+    logs_recientes = ChangeLog.objects.select_related('user').order_by('-timestamp')[:20]
+
+    # Últimas solicitudes
+    ultimas_solicitudes = Solicitud.objects.select_related('productor', 'solicitante').order_by('-fecha_solicitud')[:10]
+
+    context = {
+        'total_usuarios': total_usuarios,
+        'admins': admins,
+        'empleados': empleados,
+        'total_solicitudes': total_solicitudes,
+        'solicitudes_pendientes': solicitudes_pendientes,
+        'solicitudes_en_revision': solicitudes_en_revision,
+        'solicitudes_aprobadas': solicitudes_aprobadas,
+        'solicitudes_rechazadas': solicitudes_rechazadas,
+        'total_productores': total_productores,
+        'total_marcas': total_marcas,
+        'ingresos_por_mes': list(ingresos_por_mes),
+        'logs_recientes': logs_recientes,
+        'ultimas_solicitudes': ultimas_solicitudes,
+    }
+    return render(request, 'app_sigrams/admin/dashboard.html', context)
+
 
 
 # LOGIN
@@ -371,11 +433,15 @@ def register_view(request):
         if form.is_valid():
             user = form.save()
 
-            # Crear perfil por defecto (inspector)
-            UserProfile.objects.create(
+            # Crear o obtener perfil (evita duplicados)
+            profile, created = UserProfile.objects.get_or_create(
                 user=user,
-                rol='inspector'
+                defaults={'rol': 'empleado'}
             )
+            if not created:
+                # Si ya existía (caso raro), aseguramos que tenga rol empleado
+                profile.rol = 'empleado'
+                profile.save()
 
             messages.success(
                 request,
@@ -411,8 +477,6 @@ class EsEmpleadoOMas(UserPassesTestMixin):
         return user_profile.rol in ['admin', 'empleado']
 
 
-
-# ... (tus vistas existentes de login, logout, register, home)
 
 # ============================================================================
 # VISTAS PARA PRODUCTORES
@@ -738,58 +802,110 @@ def detalle_marca(request, pk):
 @login_required
 def nueva_marca(request):
     """Crear nueva marca y señal"""
+
     if request.method == 'POST':
         form = MarcaSenalForm(request.POST, request.FILES)
+
         if form.is_valid():
             marca = form.save(commit=False)
-            
-            # Si se seleccionó una imagen predefinida, copiar la imagen
-            if marca.imagen_predefinida and not marca.imagen_marca:
-                imagen_predefinida = marca.imagen_predefinida
-                # Copiar la imagen predefinida al campo imagen_marca
-                if imagen_predefinida.imagen:
-                    # Esta es una forma simple de copiar el archivo
+
+            imagenes_predefinidas = form.cleaned_data.get('imagenes_predefinidas')
+
+            # Si no subieron imagen manual pero eligieron predefinidas
+            if imagenes_predefinidas and not request.FILES.get('imagen_marca'):
+                primera_imagen = imagenes_predefinidas.first()
+
+                if primera_imagen and primera_imagen.imagen:
+                    contenido = primera_imagen.imagen.read()
+                    nombre_archivo = os.path.basename(primera_imagen.imagen.name)
+
                     marca.imagen_marca.save(
-                        f"predefinida_{imagen_predefinida.id}_{imagen_predefinida.imagen.name}",
-                        imagen_predefinida.imagen.file,
+                        f"predef_{primera_imagen.id}_{nombre_archivo}",
+                        ContentFile(contenido),
                         save=False
                     )
-            
+
+            # 🔥 Aquí se genera automáticamente numero_orden
             marca.save()
-            messages.success(request, f'Marca #{marca.numero_orden} creada exitosamente.')
+
+            form.save_m2m()
+
+            messages.success(
+                request,
+                f'Marca #{marca.numero_orden} creada exitosamente.'
+            )
+
             return redirect('detalle_marca', pk=marca.pk)
-        else:
-            messages.error(request, 'Por favor, corrija los errores en el formulario.')
+
+        messages.error(request, 'Por favor, corrija los errores en el formulario.')
+
     else:
         form = MarcaSenalForm()
-    
-    context = {
-        'form': form, 
+
+    return render(request, 'app_sigrams/marcas/form.html', {
+        'form': form,
         'titulo': 'Nueva Marca y Señal',
         'imagenes_predefinidas': ImagenMarcaPredefinida.objects.filter(activa=True)
-    }
-    return render(request, 'app_sigrams/marcas/form.html', context)
+    })
+
 
 
 
 @login_required
 def editar_marca(request, pk):
     """Editar marca existente"""
+
     marca = get_object_or_404(MarcaSenal, pk=pk)
-    
+
     if request.method == 'POST':
         form = MarcaSenalForm(request.POST, request.FILES, instance=marca)
+
         if form.is_valid():
-            marca = form.save()
-            messages.success(request, f'Marca #{marca.numero_orden} actualizada exitosamente.')
-            return redirect('detalle_marca', pk=marca.pk)
-        else:
-            messages.error(request, 'Por favor, corrija los errores en el formulario.')
+            marca_temp = form.save(commit=False)
+
+            imagenes_predefinidas = form.cleaned_data.get('imagenes_predefinidas')
+
+            if (
+                imagenes_predefinidas
+                and not request.FILES.get('imagen_marca')
+                and not marca.imagen_marca
+            ):
+                primera_imagen = imagenes_predefinidas.first()
+
+                if primera_imagen and primera_imagen.imagen:
+                    contenido = primera_imagen.imagen.read()
+                    nombre_archivo = os.path.basename(primera_imagen.imagen.name)
+
+                    marca_temp.imagen_marca.save(
+                        f"predef_{primera_imagen.id}_{nombre_archivo}",
+                        ContentFile(contenido),
+                        save=False
+                    )
+
+            # 🔥 No modifica numero_orden porque ya existe
+            marca_temp.save()
+
+            form.save_m2m()
+
+            messages.success(
+                request,
+                f'Marca #{marca_temp.numero_orden} actualizada exitosamente.'
+            )
+
+            return redirect('detalle_marca', pk=marca_temp.pk)
+
+        messages.error(request, 'Por favor, corrija los errores en el formulario.')
+
     else:
         form = MarcaSenalForm(instance=marca)
-    
-    context = {'form': form, 'titulo': 'Editar Marca y Señal', 'marca': marca}
-    return render(request, 'app_sigrams/marcas/form.html', context)
+
+    return render(request, 'app_sigrams/marcas/form.html', {
+        'form': form,
+        'titulo': f'Editar Marca #{marca.numero_orden}',
+        'imagenes_predefinidas': ImagenMarcaPredefinida.objects.filter(activa=True),
+        'marca': marca
+    })
+
 
 
 class ListaMarcasView(ListView):
@@ -941,7 +1057,14 @@ def detalle_solicitud(request, pk):
     )
 
     # Perfil del usuario (lo mantenemos de tu código)
-    user_profile = UserProfile.objects.get(user=request.user)
+
+    default_rol = 'admin' if request.user.is_superuser else 'empleado'
+    user_profile, created = UserProfile.objects.get_or_create(
+    user=request.user,
+    defaults={'rol': default_rol}
+    )
+    if created:
+        messages.info(request, 'Perfil de usuario creado automáticamente.')
 
     # =========================
     # FORMSET DE DOCUMENTOS
@@ -980,11 +1103,13 @@ def detalle_solicitud(request, pk):
         'solicitud': solicitud,
         'user_profile': user_profile,
         'documento_formset': documento_formset,
+        'roles_permitidos_documentos': ['admin', 'empleado'],
+        'estados_para_devolver': ['EN_REVISION', 'OBSERVADO'],
     }
 
     return render(request, 'app_sigrams/solicitudes/detalle.html', context)
 
-
+from app_registros.models import ChangeLog
 @login_required
 def nueva_solicitud(request):
     """Crear nueva solicitud"""
@@ -1026,7 +1151,15 @@ def editar_solicitud(request, pk):
     solicitud = get_object_or_404(Solicitud, pk=pk)
     
     # Verificar que el usuario pueda editar (solo el solicitante o admin)
-    user_profile = UserProfile.objects.get(user=request.user)
+    
+    default_rol = 'admin' if request.user.is_superuser else 'empleado'
+    user_profile, created = UserProfile.objects.get_or_create(
+        user=request.user,
+        defaults={'rol': default_rol}
+    )
+    if created:
+        messages.info(request, 'Perfil de usuario creado automáticamente.')
+    
     if not (solicitud.solicitante == request.user or user_profile.rol == 'admin'):
         messages.error(request, 'No tiene permisos para editar esta solicitud.')
         return redirect('detalle_solicitud', pk=pk)
@@ -1065,40 +1198,93 @@ def editar_solicitud(request, pk):
 def cambiar_estado_solicitud(request, pk, accion):
     """Cambiar estado de una solicitud"""
     solicitud = get_object_or_404(Solicitud, pk=pk)
-    user_profile = UserProfile.objects.get(user=request.user)
     
+    default_rol = 'admin' if request.user.is_superuser else 'empleado'
+    user_profile, created = UserProfile.objects.get_or_create(
+        user=request.user,
+        defaults={'rol': default_rol}
+    )
+    if created:
+        messages.info(request, 'Perfil de usuario creado automáticamente.')
+    # Import acá para evitar dependencias circulares
+    from app_notificaciones.models import Notificacion
+
     # Verificar permisos según la acción
     if accion == 'revisar' and user_profile.rol in ['admin', 'empleado']:
         solicitud.estado = 'EN_REVISION'
         solicitud.revisor = request.user
         solicitud.fecha_revision = timezone.now()
         mensaje = f'Solicitud #{solicitud.id} puesta en revisión.'
-    
-    elif accion == 'aprobar' and user_profile.rol in ['admin']:
+
+        # Notificación
+        if solicitud.solicitante:
+            Notificacion.crear_notificacion(
+                usuario=solicitud.solicitante,
+                titulo='Solicitud en revisión',
+                mensaje=f'Tu solicitud #{solicitud.id} está siendo revisada.',
+                tipo='info',
+                contenido_relacionado=solicitud,
+                url=f'/solicitudes/{solicitud.id}/'
+            )
+
+    elif accion == 'aprobar' and user_profile.rol in ['admin', 'empleado']:
         solicitud.estado = 'APROBADO'
         solicitud.aprobador = request.user
         solicitud.fecha_resolucion = timezone.now()
         mensaje = f'Solicitud #{solicitud.id} aprobada.'
-    
-    elif accion == 'rechazar' and user_profile.rol in ['admin']:
+
+        # Notificación
+        if solicitud.solicitante:
+            Notificacion.crear_notificacion(
+                usuario=solicitud.solicitante,
+                titulo='¡Solicitud Aprobada!',
+                mensaje=f'Tu solicitud #{solicitud.id} ha sido aprobada.',
+                tipo='exito',
+                contenido_relacionado=solicitud,
+                url=f'/solicitudes/{solicitud.id}/'
+            )
+
+    elif accion == 'rechazar' and user_profile.rol in ['admin', 'empleado']:
         solicitud.estado = 'RECHAZADO'
         solicitud.fecha_resolucion = timezone.now()
         mensaje = f'Solicitud #{solicitud.id} rechazada.'
-    
+
+        # Notificación
+        if solicitud.solicitante:
+            Notificacion.crear_notificacion(
+                usuario=solicitud.solicitante,
+                titulo='Solicitud Rechazada',
+                mensaje=f'Tu solicitud #{solicitud.id} ha sido rechazada.',
+                tipo='error',
+                contenido_relacionado=solicitud,
+                url=f'/solicitudes/{solicitud.id}/'
+            )
+
     elif accion == 'observar' and user_profile.rol in ['admin', 'empleado']:
         solicitud.estado = 'OBSERVADO'
         mensaje = f'Solicitud #{solicitud.id} marcada como observada.'
-    
+
+        # Notificación
+        if solicitud.solicitante:
+            Notificacion.crear_notificacion(
+                usuario=solicitud.solicitante,
+                titulo='Solicitud Observada',
+                mensaje=f'Tu solicitud #{solicitud.id} requiere observaciones.',
+                tipo='alerta',
+                contenido_relacionado=solicitud,
+                url=f'/solicitudes/{solicitud.id}/'
+            )
+
     elif accion == 'pendiente' and user_profile.rol in ['admin', 'empleado']:
         solicitud.estado = 'PENDIENTE'
         mensaje = f'Solicitud #{solicitud.id} devuelta a pendiente.'
-    
+
     else:
         messages.error(request, 'No tiene permisos para realizar esta acción.')
         return redirect('detalle_solicitud', pk=pk)
-    
+
     solicitud.save()
-    
+
     ChangeLog.objects.create(
         user=request.user,
         modelo='Solicitud',
@@ -1106,15 +1292,23 @@ def cambiar_estado_solicitud(request, pk, accion):
         accion=accion.upper(),
         snapshot={'estado': solicitud.estado}
     )
-    
+
     messages.success(request, mensaje)
     return redirect('detalle_solicitud', pk=pk)
+
 
 @login_required
 def revision_solicitud(request, pk):
     """Formulario de revisión de solicitud"""
     solicitud = get_object_or_404(Solicitud, pk=pk)
-    user_profile = UserProfile.objects.get(user=request.user)
+    
+    default_rol = 'admin' if request.user.is_superuser else 'empleado'
+    user_profile, created = UserProfile.objects.get_or_create(
+        user=request.user,
+        defaults={'rol': default_rol}
+    )
+    if created:
+        messages.info(request, 'Perfil de usuario creado automáticamente.')
     
     # Verificar permisos
     if user_profile.rol not in ['admin', 'empleado']:
@@ -1305,43 +1499,45 @@ from django.db.models import Sum
 
 @login_required
 def reporte_ingresos(request):
-    """Reporte detallado de ingresos por sellados"""
     # Filtros
     año = request.GET.get('año', datetime.datetime.now().year)
     mes = request.GET.get('mes', '')
-    
-    # Obtener ingresos por mes
-    ingresos_por_mes = MarcaSenal.objects.filter(
-        valor_sellado__isnull=False
-    ).annotate(
+
+    # Base queryset
+    ingresos_qs = MarcaSenal.objects.filter(valor_sellado__isnull=False)
+
+    if año:
+        ingresos_qs = ingresos_qs.filter(fecha_creacion__year=año)
+    if mes:
+        ingresos_qs = ingresos_qs.filter(fecha_creacion__month=mes)
+
+    # Ingresos agrupados por mes (para la tabla)
+    ingresos_por_mes = ingresos_qs.annotate(
         mes=TruncMonth('fecha_creacion')
     ).values('mes').annotate(
         total=Sum('valor_sellado'),
         cantidad=Count('id')
     ).order_by('-mes')
-    
-    # Filtrar por año si se especifica
-    if año:
-        ingresos_por_mes = ingresos_por_mes.filter(fecha_creacion__year=año)
-    
-    # Filtrar por mes si se especifica
-    if mes:
-        ingresos_por_mes = ingresos_por_mes.filter(fecha_creacion__month=mes)
-    
-    # Total general
-    total_general = ingresos_por_mes.aggregate(total=Sum('total'))['total'] or 0
-    
-    # Obtener años disponibles para el filtro
+
+    # Ingresos detallados por marca (para exportar)
+    ingresos_detalle = ingresos_qs.select_related('productor').order_by('-fecha_creacion')[:100]  # últimos 100
+
+    # Totales
+    total_general = ingresos_qs.aggregate(total=Sum('valor_sellado'))['total'] or 0
+    cantidad_total = ingresos_qs.count()
+
+    # Años disponibles para filtro
     años_disponibles = MarcaSenal.objects.dates('fecha_creacion', 'year')
-    
+
     context = {
-        'ingresos_por_mes': list(ingresos_por_mes),
+        'ingresos_por_mes': ingresos_por_mes,
+        'ingresos_detalle': ingresos_detalle,
         'total_general': total_general,
+        'cantidad_total': cantidad_total,
         'año_seleccionado': año,
         'mes_seleccionado': mes,
         'años_disponibles': años_disponibles,
     }
-    
     return render(request, 'app_sigrams/reportes/ingresos.html', context)
 
 
@@ -1391,4 +1587,369 @@ def eliminar_documento(request, documento_id):
     
     messages.success(request, 'Documento eliminado correctamente.')
     return redirect('detalle_solicitud', pk=solicitud_pk)
+
+
+
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+
+# ============================================
+# EXPORTACIONES PDF
+# ============================================
+
+@login_required
+def reporte_productores_pdf(request):
+    # (Ya lo tienes implementado como ReporteProductoresPDFView)
+    # Si quieres, puedes convertir esa clase en función o mantenerla.
+    # Por simplicidad, usaré la clase existente:
+    return ReporteProductoresPDFView.as_view()(request)
+
+@login_required
+def reporte_marcas_pdf(request):
+    from reportlab.lib.pagesizes import landscape, A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib import colors
+    import datetime
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="marcas.pdf"'
+    
+    doc = SimpleDocTemplate(response, pagesize=landscape(A4))
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    title = Paragraph("Reporte de Marcas y Señales - SIGRAMS", styles['Title'])
+    elements.append(title)
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph(f"Generado: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+    elements.append(Spacer(1, 24))
+    
+    marcas = MarcaSenal.objects.select_related('productor').all().order_by('-fecha_inscripcion')[:500]
+    data = [['N° Orden', 'Productor', 'Tipo Trámite', 'Estado', 'Fecha Inscripción', 'Total Ganado']]
+    for m in marcas:
+        data.append([
+            str(m.numero_orden),
+            m.productor.nombre_completo,
+            m.get_tipo_tramite_display(),
+            m.get_estado_display(),
+            m.fecha_inscripcion.strftime('%d/%m/%Y'),
+            str(m.total_ganado)
+        ])
+    
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0A2E5A')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 10),
+        ('BOTTOMPADDING', (0,0), (-1,0), 8),
+        ('BACKGROUND', (0,1), (-1,-1), colors.white),
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+        ('FONTSIZE', (0,1), (-1,-1), 8),
+    ]))
+    elements.append(table)
+    
+    doc.build(elements)
+    return response
+
+@login_required
+def reporte_solicitudes_pdf(request):
+    from reportlab.lib.pagesizes import landscape, A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib import colors
+    import datetime
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="solicitudes.pdf"'
+    
+    doc = SimpleDocTemplate(response, pagesize=landscape(A4))
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    title = Paragraph("Reporte de Solicitudes - SIGRAMS", styles['Title'])
+    elements.append(title)
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph(f"Generado: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+    elements.append(Spacer(1, 24))
+    
+    solicitudes = Solicitud.objects.select_related('productor', 'solicitante').all().order_by('-fecha_solicitud')[:500]
+    data = [['ID', 'Productor', 'Tipo Trámite', 'Estado', 'Prioridad', 'Fecha Solicitud']]
+    for s in solicitudes:
+        data.append([
+            str(s.id),
+            s.productor.nombre_completo,
+            s.get_tipo_tramite_display(),
+            s.get_estado_display(),
+            s.get_prioridad_display(),
+            s.fecha_solicitud.strftime('%d/%m/%Y')
+        ])
+    
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0A2E5A')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 10),
+        ('BOTTOMPADDING', (0,0), (-1,0), 8),
+        ('BACKGROUND', (0,1), (-1,-1), colors.white),
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+        ('FONTSIZE', (0,1), (-1,-1), 8),
+    ]))
+    elements.append(table)
+    
+    doc.build(elements)
+    return response
+
+# ============================================
+# EXPORTACIONES EXCEL
+# ============================================
+
+@login_required
+def reporte_productores_excel(request):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Productores"
+    
+    headers = ['Apellido', 'Nombre', 'DNI', 'CUIT', 'Localidad', 'Departamento', 'Estado', 'Fecha Registro']
+    ws.append(headers)
+    
+    for col in range(1, len(headers)+1):
+        cell = ws.cell(row=1, column=col)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="0A2E5A", end_color="0A2E5A", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center")
+    
+    productores = Productor.objects.all().order_by('apellido', 'nombre')
+    for p in productores:
+        ws.append([
+            p.apellido,
+            p.nombre,
+            p.dni,
+            p.cuit or '',
+            p.localidad or '',
+            p.departamento or '',
+            p.get_estado_display(),
+            p.fecha_registro.strftime('%d/%m/%Y')
+        ])
+    
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[col_letter].width = adjusted_width
+    
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="productores.xlsx"'
+    wb.save(response)
+    return response
+
+@login_required
+def reporte_marcas_excel(request):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Marcas"
+    
+    headers = ['N° Orden', 'Productor', 'Tipo Trámite', 'Estado', 'Fecha Inscripción', 'Total Ganado']
+    ws.append(headers)
+    
+    for col in range(1, len(headers)+1):
+        cell = ws.cell(row=1, column=col)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="0A2E5A", end_color="0A2E5A", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center")
+    
+    marcas = MarcaSenal.objects.select_related('productor').all().order_by('-fecha_inscripcion')
+    for m in marcas:
+        ws.append([
+            m.numero_orden,
+            m.productor.nombre_completo,
+            m.get_tipo_tramite_display(),
+            m.get_estado_display(),
+            m.fecha_inscripcion.strftime('%d/%m/%Y'),
+            m.total_ganado
+        ])
+    
+    # Ajustar ancho
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[col_letter].width = adjusted_width
+    
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="marcas.xlsx"'
+    wb.save(response)
+    return response
+
+@login_required
+def reporte_solicitudes_excel(request):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Solicitudes"
+    
+    headers = ['ID', 'Productor', 'Tipo Trámite', 'Estado', 'Prioridad', 'Fecha Solicitud']
+    ws.append(headers)
+    
+    for col in range(1, len(headers)+1):
+        cell = ws.cell(row=1, column=col)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="0A2E5A", end_color="0A2E5A", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center")
+    
+    solicitudes = Solicitud.objects.select_related('productor').all().order_by('-fecha_solicitud')
+    for s in solicitudes:
+        ws.append([
+            s.id,
+            s.productor.nombre_completo,
+            s.get_tipo_tramite_display(),
+            s.get_estado_display(),
+            s.get_prioridad_display(),
+            s.fecha_solicitud.strftime('%d/%m/%Y')
+        ])
+    
+    # Ajustar ancho
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[col_letter].width = adjusted_width
+    
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="solicitudes.xlsx"'
+    wb.save(response)
+    return response
+
+
+@login_required
+def reporte_usuarios_pdf(request):
+    # Verificar admin
+    user_profile = UserProfile.objects.get(user=request.user)
+    if user_profile.rol != 'admin':
+        messages.error(request, 'No tiene permisos.')
+        return redirect('home')
+
+    from reportlab.lib.pagesizes import landscape, A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib import colors
+    import datetime
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="usuarios.pdf"'
+    doc = SimpleDocTemplate(response, pagesize=landscape(A4))
+    elements = []
+    styles = getSampleStyleSheet()
+
+    title = Paragraph("Reporte de Usuarios - SIGRAMS", styles['Title'])
+    elements.append(title)
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph(f"Generado: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+    elements.append(Spacer(1, 24))
+
+    usuarios = User.objects.select_related('userprofile').all().order_by('username')
+    data = [['Usuario', 'Email', 'Rol', 'Fecha registro', 'Último acceso']]
+    for u in usuarios:
+        try:
+            rol = u.userprofile.get_rol_display()
+        except:
+            rol = 'Sin perfil'
+        data.append([
+            u.username,
+            u.email or '',
+            rol,
+            u.date_joined.strftime('%d/%m/%Y'),
+            u.last_login.strftime('%d/%m/%Y %H:%M') if u.last_login else ''
+        ])
+
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0A2E5A')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 10),
+        ('BOTTOMPADDING', (0,0), (-1,0), 8),
+        ('BACKGROUND', (0,1), (-1,-1), colors.white),
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+        ('FONTSIZE', (0,1), (-1,-1), 8),
+    ]))
+    elements.append(table)
+    doc.build(elements)
+    return response
+
+@login_required
+def reporte_usuarios_excel(request):
+    user_profile = UserProfile.objects.get(user=request.user)
+    if user_profile.rol != 'admin':
+        messages.error(request, 'No tiene permisos.')
+        return redirect('home')
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Usuarios"
+
+    headers = ['Usuario', 'Email', 'Rol', 'Fecha registro', 'Último acceso']
+    ws.append(headers)
+
+    for col in range(1, len(headers)+1):
+        cell = ws.cell(row=1, column=col)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="0A2E5A", end_color="0A2E5A", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center")
+
+    usuarios = User.objects.select_related('userprofile').all().order_by('username')
+    for u in usuarios:
+        try:
+            rol = u.userprofile.get_rol_display()
+        except:
+            rol = 'Sin perfil'
+        ws.append([
+            u.username,
+            u.email or '',
+            rol,
+            u.date_joined.strftime('%d/%m/%Y'),
+            u.last_login.strftime('%d/%m/%Y %H:%M') if u.last_login else ''
+        ])
+
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[col_letter].width = adjusted_width
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="usuarios.xlsx"'
+    wb.save(response)
+    return response
+
 

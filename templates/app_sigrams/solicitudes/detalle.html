@@ -16,7 +16,7 @@
         </a>
         {% endif %}
         
-        {% if user_profile.rol in 'admin,empleado'|split:',' %}
+        {% if user_profile.rol in roles_permitidos_documentos %}
         <div class="btn-group">
             <button type="button" class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown">
                 📋 Acciones
@@ -32,7 +32,7 @@
                 <li><hr class="dropdown-divider"></li>
                 {% endif %}
                 
-                {% if user_profile.rol == 'admin' %}
+                {% if user_profile.rol in roles_permitidos_documentos %}
                 {% if solicitud.estado == 'EN_REVISION' or solicitud.estado == 'OBSERVADO' %}
                 <li>
                     <a class="dropdown-item" href="{% url 'cambiar_estado_solicitud' solicitud.pk 'aprobar' %}" 
@@ -58,7 +58,7 @@
                 </li>
                 {% endif %}
                 
-                {% if solicitud.estado in 'EN_REVISION,OBSERVADO'|split:',' %}
+                {% if solicitud.estado in estados_para_devolver %}
                 <li>
                     <a class="dropdown-item" href="{% url 'cambiar_estado_solicitud' solicitud.pk 'pendiente' %}" 
                        onclick="return confirm('¿Está seguro de devolver a pendiente esta solicitud?')">
@@ -220,7 +220,7 @@
         </div>
         {% endif %}
 
-        {% if solicitud.observaciones_internas and user_profile.rol in 'admin,empleado'|split:',' %}
+        {% if solicitud.observaciones_internas and user_profile.rol in roles_permitidos_documentos %}
         <div class="card mb-4">
             <div class="card-header bg-dark text-white">
                 <h5 class="mb-0">Observaciones Internas</h5>

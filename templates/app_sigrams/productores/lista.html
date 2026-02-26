@@ -51,6 +51,16 @@
     </div>
 </div>
 
+<div class="btn-group me-2">
+    <button type="button" class="btn btn-outline-success dropdown-toggle" data-bs-toggle="dropdown">
+        📥 Exportar
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="{% url 'reporte_productores_pdf' %}">PDF</a></li>
+        <li><a class="dropdown-item" href="{% url 'reporte_productores_excel' %}">Excel</a></li>
+    </ul>
+</div>
+
 <!-- Tabla de productores -->
 <div class="card">
     <div class="card-body">

@@ -37,7 +37,6 @@ class CUITValidator:
         if not value:
             return
         
-        # Patrón de CUIT: 00-00000000-0
         pattern = r'^\d{2}-\d{8}-\d{1}$'
         
         if not re.match(pattern, str(value)):
@@ -46,26 +45,27 @@ class CUITValidator:
                 code='invalid_cuit_format'
             )
         
-        # Validar dígito verificador (algoritmo simple)
         try:
-            cuit_limpio = str(value).replace('-', '')
+            cuit = str(value).replace('-', '')
             coeficientes = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
             
-            # Calcular dígito verificador
-            suma = sum(int(cuit_limpio[i]) * coeficientes[i] for i in range(10))
+            suma = sum(int(cuit[i]) * coeficientes[i] for i in range(10))
             resto = suma % 11
-            digito_verificador = 11 - resto if resto != 0 else 0
+            resultado = 11 - resto
             
-            if digito_verificador == 10:
-                digito_verificador = 9
-            elif digito_verificador == 11:
-                digito_verificador = 1
+            if resultado == 11:
+                digito_calculado = 0
+            elif resultado == 10:
+                digito_calculado = 9  # simplificado
+            else:
+                digito_calculado = resultado
             
-            if digito_verificador != int(cuit_limpio[10]):
+            if digito_calculado != int(cuit[10]):
                 raise ValidationError(
                     _('El CUIT no es válido (dígito verificador incorrecto).'),
                     code='invalid_cuit_dv'
                 )
+        
         except (IndexError, ValueError):
             raise ValidationError(
                 _('El CUIT no es válido.'),
@@ -73,6 +73,7 @@ class CUITValidator:
             )
         
         return value
+
 
 class NombreApellidoValidator:
     """

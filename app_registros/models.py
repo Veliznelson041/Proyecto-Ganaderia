@@ -131,72 +131,160 @@ class ImagenMarcaPredefinida(models.Model):
 
 
 
-class MarcaSenal(models.Model):  # Sin ñ
+from django.db import models
+from django.db.models import Max
+from django.utils import timezone
+from django.core.validators import MinValueValidator
+
+
+class MarcaSenal(models.Model):
+
     TIPO_TRAMITE_CHOICES = [
         ('NUEVA', 'Marca nueva'),
         ('RENOVACION', 'Renovación'),
         ('TRANSFERENCIA', 'Transferencia'),
     ]
-    
+
     ESTADO_CHOICES = [
         ('VIGENTE', 'Vigente'),
         ('VENCIDA', 'Vencida'),
         ('BAJA', 'Baja'),
         ('EN_TRAMITE', 'En trámite'),
     ]
-    
-    # Datos básicos
-    productor = models.ForeignKey(Productor, on_delete=models.CASCADE, related_name='marcas_senales')
-    campo = models.ForeignKey(Campo, on_delete=models.CASCADE, related_name='marcas_senales')
-    tipo_tramite = models.CharField(max_length=20, choices=TIPO_TRAMITE_CHOICES, default='NUEVA')
-    
-    # Información de registro
-    numero_orden = models.PositiveIntegerField(unique=True, verbose_name="Número de orden")
+
+    # ============================
+    # DATOS BÁSICOS
+    # ============================
+    productor = models.ForeignKey(
+        Productor,
+        on_delete=models.CASCADE,
+        related_name='marcas_senales'
+    )
+
+    campo = models.ForeignKey(
+        Campo,
+        on_delete=models.CASCADE,
+        related_name='marcas_senales'
+    )
+
+    tipo_tramite = models.CharField(
+        max_length=20,
+        choices=TIPO_TRAMITE_CHOICES,
+        default='NUEVA'
+    )
+
+    # ============================
+    # INFORMACIÓN DE REGISTRO
+    # ============================
+    numero_orden = models.PositiveIntegerField(
+        unique=True,
+        verbose_name="Número de orden",
+        editable=False  # 🔥 No aparece en formularios
+    )
+
     fecha_inscripcion = models.DateField(default=timezone.now)
     fecha_vencimiento = models.DateField(blank=True, null=True)
-    
-    # Marcas y señales
+
+    # ============================
+    # MARCAS Y SEÑALES
+    # ============================
     descripcion_marca = models.TextField(verbose_name="Descripción de la marca")
     imagen_marca = models.ImageField(upload_to='marcas/', blank=True, null=True)
-    tipo_senal = models.ForeignKey(TipoSenal, on_delete=models.SET_NULL, null=True, blank=True)
-    descripcion_senal = models.TextField(blank=True, verbose_name="Descripción de la señal")
-    imagen_predefinida = models.ForeignKey(ImagenMarcaPredefinida, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Imagen predefinida")
-    
-    # Ganado
+
+    tipo_senal = models.ForeignKey(
+        TipoSenal,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    descripcion_senal = models.TextField(
+        blank=True,
+        verbose_name="Descripción de la señal"
+    )
+
+    imagenes_predefinidas = models.ManyToManyField(
+        ImagenMarcaPredefinida,
+        blank=True,
+        verbose_name="Imágenes predefinidas",
+        help_text="Seleccione una o más imágenes que componen la marca"
+    )
+
+    # ============================
+    # GANADO
+    # ============================
     vacuno = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
     caballar = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
     mular = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
     asnal = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
     ovino = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
     cabrio = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
-    
-    # Administrativo
-    valor_sellado = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='EN_TRAMITE')
+
+    # ============================
+    # ADMINISTRATIVO
+    # ============================
+    valor_sellado = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='EN_TRAMITE'
+    )
+
     observaciones = models.TextField(blank=True)
-    
-    # Carnet
+
+    # ============================
+    # CARNET
+    # ============================
     imagen_carnet_frente = models.ImageField(upload_to='carnets/', blank=True, null=True)
     imagen_carnet_dorso = models.ImageField(upload_to='carnets/', blank=True, null=True)
-    
-    # Auditoría
+
+    # ============================
+    # AUDITORÍA
+    # ============================
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     ultima_modificacion = models.DateTimeField(auto_now=True)
-    
+
+    # ============================
+    # META
+    # ============================
     class Meta:
         verbose_name = "Marca y Señal"
         verbose_name_plural = "Marcas y Señales"
         ordering = ['-fecha_inscripcion']
-    
+
+    # ============================
+    # MÉTODOS
+    # ============================
     def __str__(self):
         return f"Marca #{self.numero_orden} - {self.productor}"
-    
+
     @property
     def total_ganado(self):
         return sum([
-            self.vacuno, self.caballar, self.mular, 
-            self.asnal, self.ovino, self.cabrio
+            self.vacuno,
+            self.caballar,
+            self.mular,
+            self.asnal,
+            self.ovino,
+            self.cabrio
         ])
+
+    def save(self, *args, **kwargs):
+        # 🔥 Generar número automático solo si no existe
+        if not self.numero_orden:
+            ultimo = MarcaSenal.objects.aggregate(
+                Max('numero_orden')
+            )['numero_orden__max']
+
+            self.numero_orden = (ultimo or 0) + 1
+
+        super().save(*args, **kwargs)
     
 
 
@@ -488,6 +576,17 @@ class UserProfile(models.Model):
     @property
     def es_administrador(self):
         return self.rol == 'admin'
+    
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.contrib.auth.models import User
+
+@receiver(post_save, sender=User)
+def crear_user_profile(sender, instance, created, **kwargs):
+    """Crea un UserProfile automáticamente al crear un User"""
+    if created:
+        UserProfile.objects.create(user=instance, rol='empleado')
 
 # ----------------------------------------
 # LOG DE CAMBIOS

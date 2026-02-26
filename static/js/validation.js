@@ -131,7 +131,7 @@ function showFieldError(field, message) {
     let errorElement = formGroup.querySelector('.field-error');
     if (!errorElement) {
         errorElement = document.createElement('div');
-        errorElement.className = 'field-error text-danger small mt-1';
+        errorElement.className = 'field-errors';
         formGroup.appendChild(errorElement);
     }
     

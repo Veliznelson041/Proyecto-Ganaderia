@@ -10,7 +10,7 @@
         <div class="card-body">
             
             <!-- Formulario para subir nuevos documentos -->
-            {% if user_profile.rol in 'admin,empleado'|split:',' or solicitud.solicitante == user %}
+            {% if user_profile.rol in roles_permitidos_documentos or solicitud.solicitante == user %}
             <div class="mb-4">
                 <h6>Agregar Nuevo Documento</h6>
                 <form method="post" enctype="multipart/form-data" id="formDocumentos">
@@ -110,7 +110,7 @@
                             <td>{{ documento.fecha_subida|date:"d/m/Y H:i" }}</td>
                             <td>{{ documento.usuario_subida.username|default:"-" }}</td>
                             <td>
-                                {% if documento.usuario_subida == user or user_profile.rol in 'admin'|split:',' %}
+                                {% if documento.usuario_subida == user or user_profile.rol in roles_permitidos_documentos %}
                                 <form method="post" action="{% url 'eliminar_documento' documento.id %}" class="d-inline">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-sm btn-outline-danger" 

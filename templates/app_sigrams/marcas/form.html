@@ -45,17 +45,14 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="{{ form.tipo_tramite.id_for_label }}" class="form-label">Tipo de Trámite *</label>
+                            <label for="{{ form.tipo_tramite.id_for_label }}" class="form-label">
+                                Tipo de Trámite *
+                            </label>
                             {{ form.tipo_tramite }}
                             {% if form.tipo_tramite.errors %}
-                                <div class="text-danger small">{{ form.tipo_tramite.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.numero_orden.id_for_label }}" class="form-label">Número de Orden *</label>
-                            {{ form.numero_orden }}
-                            {% if form.numero_orden.errors %}
-                                <div class="text-danger small">{{ form.numero_orden.errors }}</div>
+                                <div class="text-danger small">
+                                    {{ form.tipo_tramite.errors }}
+                                </div>
                             {% endif %}
                         </div>
                     </div>
@@ -89,26 +86,47 @@
                 <div class="col-md-6">
                     <h5 class="text-catamarca mb-3">Marcas y Señales</h5>
 
-                    <!-- Galería de imágenes predefinidas -->
-                    <div class="mb-3">
-                        <label class="form-label">Seleccionar Marca Predefinida</label>
-                        <div class="row g-2" id="galeria-marcas">
-                            {% for imagen in imagenes_predefinidas %}
-                            <div class="col-4 col-sm-3">
-                                <div class="card marca-predefinida" data-imagen-id="{{ imagen.id }}" data-imagen-url="{{ imagen.imagen.url }}">
-                                    <img src="{{ imagen.imagen.url }}" class="card-img-top" alt="{{ imagen.nombre }}" style="height: 80px; object-fit: cover;">
-                                    <div class="card-body p-2">
-                                        <small class="card-text">{{ imagen.nombre }}</small>
-                                    </div>
-                                </div>
-                            </div>
-                            {% empty %}
-                            <div class="col-12">
-                                <p class="text-muted">No hay imágenes predefinidas cargadas.</p>
-                            </div>
-                            {% endfor %}
-                        </div>
+                    <!-- Galería de imágenes predefinidas con checkboxes -->
+<div class="mb-3">
+    <label class="form-label">Seleccionar Imágenes Predefinidas (puede elegir varias)</label>
+    <div class="row g-2" id="galeria-marcas">
+        {% for imagen in imagenes_predefinidas %}
+        <div class="col-4 col-sm-3">
+            <div class="card marca-predefinida h-100 {% if imagen.id in form.imagenes_predefinidas.value %}selected border-primary border-2{% endif %}">
+                <img src="{{ imagen.imagen.url }}" class="card-img-top" alt="{{ imagen.nombre }}" style="height: 80px; object-fit: cover;">
+                <div class="card-body p-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               name="imagenes_predefinidas" value="{{ imagen.id }}"
+                               id="img_{{ imagen.id }}"
+                               {% if imagen.id in form.imagenes_predefinidas.value %}checked{% endif %}>
+                        <label class="form-check-label small" for="img_{{ imagen.id }}">
+                            {{ imagen.nombre }}
+                        </label>
                     </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <p class="text-muted">No hay imágenes predefinidas cargadas.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Vista previa de imágenes seleccionadas -->
+<div id="imagen-seleccionada-container" class="mb-3" style="display: none;">
+    <label class="form-label">Imagen(es) Seleccionada(s):</label>
+    <div class="card">
+        <div class="card-body text-center">
+            <img id="imagen-seleccionada-preview" src="" alt="Vista previa" 
+                 class="img-fluid mb-2" style="max-height: 150px;">
+            <p id="imagen-seleccionada-nombre" class="mb-0"></p>
+            <p id="imagen-seleccionada-count" class="small text-muted"></p>
+        </div>
+    </div>
+</div>
 
                     <!-- Vista previa de imagen seleccionada -->
                     <div id="imagen-seleccionada-container" class="mb-3" style="display: none;">
@@ -256,14 +274,15 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+
+    // =====================================================
+    // CARGA DINÁMICA DE CAMPOS SEGÚN PRODUCTOR
+    // =====================================================
     const productorSelect = document.getElementById('id_productor');
     const campoSelect = document.getElementById('id_campo');
     const campoHelpText = document.getElementById('campo-help-text');
     const creandoCampoAlert = document.getElementById('creando-campo');
 
-    // ==============================
-    // CARGA DINÁMICA DE CAMPOS
-    // ==============================
     if (productorSelect && campoSelect) {
         productorSelect.addEventListener('change', function() {
             const productorId = this.value;
@@ -277,21 +296,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Loading
             campoSelect.innerHTML = '<option value="">Cargando campos...</option>';
             campoSelect.disabled = true;
-            if (campoHelpText) {
-                campoHelpText.textContent = 'Cargando campos...';
-            }
-            if (creandoCampoAlert) {
-                creandoCampoAlert.style.display = 'none';
-            }
 
             fetch(`/ajax/campos/${productorId}/`)
                 .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Error en la respuesta del servidor');
-                    }
+                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
                     return response.json();
                 })
                 .then(data => {
@@ -299,18 +309,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     if (!data || data.length === 0) {
                         campoSelect.innerHTML = '<option value="">No hay campos registrados</option>';
-                        if (campoHelpText) {
-                            campoHelpText.textContent = 'No hay campos registrados para este productor';
-                        }
                         campoSelect.disabled = true;
                         return;
                     }
 
                     data.forEach(campo => {
-                        if (campo.error) {
-                            throw new Error(campo.error);
-                        }
-
                         const option = document.createElement('option');
                         option.value = campo.id;
                         option.textContent = campo.distrito
@@ -320,84 +323,89 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
 
                     campoSelect.disabled = false;
-                    if (campoHelpText) {
-                        campoHelpText.textContent = `Se encontraron ${data.length} campo(s)`;
-                    }
-
-                    // Si hay uno solo → autoseleccionar
-                    if (data.length === 1) {
-                        campoSelect.value = data[0].id;
-
-                        if (data[0].creado_automaticamente && creandoCampoAlert) {
-                            creandoCampoAlert.innerHTML =
-                                '<small><i class="fas fa-check"></i> Campo creado automáticamente basado en los datos del productor</small>';
-                            creandoCampoAlert.className = 'alert alert-success mt-2';
-                            creandoCampoAlert.style.display = 'block';
-                        }
-                    }
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     campoSelect.innerHTML = '<option value="">Error al cargar campos</option>';
                     campoSelect.disabled = false;
-                    if (campoHelpText) {
-                        campoHelpText.textContent = `Error: ${error.message}`;
-                    }
                 });
         });
 
-        // Para edición
         if (productorSelect.value) {
             productorSelect.dispatchEvent(new Event('change'));
         }
     }
 
-    // ==============================
-    // IMÁGENES PREDEFINIDAS
-    // ==============================
+    // =====================================================
+    // CARGA DE IMÁGENES PREDEFINIDAS (SELECCIÓN MÚLTIPLE)
+    // =====================================================
     cargarImagenesPredefinidas();
 });
 
-// ==============================
-// GALERÍA DE IMÁGENES
-// ==============================
+
+// =====================================================
+// FUNCIÓN PARA CARGAR IMÁGENES
+// =====================================================
 function cargarImagenesPredefinidas() {
     const galeriaMarcas = document.getElementById('galeria-marcas');
     if (!galeriaMarcas) return;
 
     fetch('/ajax/imagenes-marcas/')
         .then(response => {
-            if (!response.ok) {
-                throw new Error('Error al cargar imágenes');
-            }
+            if (!response.ok) throw new Error('Error al cargar imágenes');
             return response.json();
         })
         .then(data => {
-            if (data && data.length > 0) {
-                galeriaMarcas.innerHTML = '';
-                data.forEach(imagen => {
-                    const col = document.createElement('div');
-                    col.className = 'col-4 col-sm-3 mb-2';
-                    col.innerHTML = `
-                        <div class="card marca-predefinida h-100"
-                             onclick="seleccionarImagenMarca(this, ${imagen.id}, '${imagen.nombre.replace(/'/g, "\\'")}', '${imagen.imagen_url || imagen.imagen}')"
-                             style="cursor: pointer;">
-                            <img src="${imagen.imagen_url || imagen.imagen}"
-                                 class="card-img-top"
-                                 alt="${imagen.nombre}"
-                                 style="height: 80px; object-fit: cover;">
-                            <div class="card-body p-1 text-center">
-                                <small class="card-text d-block">${imagen.nombre}</small>
-                                <small class="text-muted">${imagen.tipo_marca}</small>
-                            </div>
-                        </div>
-                    `;
-                    galeriaMarcas.appendChild(col);
-                });
-            } else {
+            galeriaMarcas.innerHTML = '';
+
+            if (!data || data.length === 0) {
                 galeriaMarcas.innerHTML =
                     '<div class="col-12"><p class="text-muted">No hay imágenes predefinidas cargadas.</p></div>';
+                return;
             }
+
+            data.forEach(imagen => {
+                const col = document.createElement('div');
+                col.className = 'col-4 col-sm-3 mb-2';
+
+                col.innerHTML = `
+                    <div class="card marca-predefinida h-100 border-light">
+                        <img src="${imagen.imagen_url || imagen.imagen}"
+                             class="card-img-top"
+                             alt="${imagen.nombre}"
+                             style="height: 80px; object-fit: cover;">
+
+                        <div class="card-body p-1 text-center">
+                            <div class="form-check">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       name="imagenes_predefinidas"
+                                       value="${imagen.id}"
+                                       id="imagen_${imagen.id}">
+                                <label class="form-check-label small"
+                                       for="imagen_${imagen.id}">
+                                    ${imagen.nombre}
+                                </label>
+                            </div>
+                            <small class="text-muted d-block">${imagen.tipo_marca}</small>
+                        </div>
+                    </div>
+                `;
+
+                galeriaMarcas.appendChild(col);
+
+                // Evento dinámico del checkbox
+                const checkbox = col.querySelector('input[type=checkbox]');
+                checkbox.addEventListener('change', function() {
+                    const card = this.closest('.marca-predefinida');
+                    if (this.checked) {
+                        card.classList.add('selected', 'border-primary', 'border-2');
+                    } else {
+                        card.classList.remove('selected', 'border-primary', 'border-2');
+                    }
+                    actualizarPreviewImagenes();
+                });
+            });
         })
         .catch(error => {
             console.error('Error cargando imágenes:', error);
@@ -406,65 +414,41 @@ function cargarImagenesPredefinidas() {
         });
 }
 
-// ==============================
-// SELECCIÓN DE IMAGEN
-// ==============================
-function seleccionarImagenMarca(elemento, imagenId, nombreMarca, imagenUrl) {
-    document.querySelectorAll('.marca-predefinida').forEach(card => {
-        card.classList.remove('selected', 'border-primary', 'border-2');
-        card.classList.add('border-light');
-    });
 
-    elemento.classList.remove('border-light');
-    elemento.classList.add('selected', 'border-primary', 'border-2');
-
-    let hiddenInput = document.getElementById('imagen_predefinida_id');
-    if (!hiddenInput) {
-        hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.name = 'imagen_predefinida_id';
-        hiddenInput.id = 'imagen_predefinida_id';
-        document.querySelector('form').appendChild(hiddenInput);
-    }
-    hiddenInput.value = imagenId;
-
-    mostrarImagenSeleccionada(imagenUrl, nombreMarca);
-}
-
-// ==============================
-// PREVIEW IMAGEN SELECCIONADA
-// ==============================
-function mostrarImagenSeleccionada(imagenUrl, nombre) {
+// =====================================================
+// PREVIEW DE IMÁGENES SELECCIONADAS
+// =====================================================
+function actualizarPreviewImagenes() {
+    const checkboxes = document.querySelectorAll('.marca-predefinida input[type=checkbox]:checked');
     const container = document.getElementById('imagen-seleccionada-container');
     const preview = document.getElementById('imagen-seleccionada-preview');
     const nombreElem = document.getElementById('imagen-seleccionada-nombre');
+    const countElem = document.getElementById('imagen-seleccionada-count');
 
     if (!container || !preview || !nombreElem) return;
 
-    if (imagenUrl) {
-        preview.src = imagenUrl;
+    if (checkboxes.length > 0) {
+        const firstChecked = checkboxes[0];
+        const card = firstChecked.closest('.marca-predefinida');
+        const img = card.querySelector('img').src;
+        const nombre = card.querySelector('.form-check-label').textContent.trim();
+
+        preview.src = img;
         nombreElem.textContent = nombre;
+
+        if (countElem) {
+            countElem.textContent = checkboxes.length > 1
+                ? `y ${checkboxes.length - 1} más`
+                : '';
+        }
+
         container.style.display = 'block';
     } else {
         container.style.display = 'none';
     }
 }
-
-// ==============================
-// DESELECCIONAR IMAGEN
-// ==============================
-function deseleccionarImagen() {
-    document.querySelectorAll('.marca-predefinida').forEach(card => {
-        card.classList.remove('selected', 'border-primary', 'border-2');
-        card.classList.add('border-light');
-    });
-
-    const hiddenInput = document.getElementById('imagen_predefinida_id');
-    if (hiddenInput) hiddenInput.value = '';
-
-    mostrarImagenSeleccionada(null, null);
-}
 </script>
+
 
 
 <style>
@@ -480,27 +464,10 @@ function deseleccionarImagen() {
 }
 
 .marca-predefinida.selected {
-    border-color: #0A2E5A !important;
+    border: 2px solid #0A2E5A !important;
     background-color: rgba(10, 46, 90, 0.05);
-}
-
-.form-control:required {
-    border-left: 3px solid #0A2E5A;
-}
-
-.small-input {
-    max-width: 100px;
-}
-
-/* Mejora para selects */
-select.form-control {
-    cursor: pointer;
-}
-
-/* Estado de loading para campos */
-select:disabled {
-    background-color: #e9ecef;
-    cursor: not-allowed;
+    box-shadow: 0 0 0 3px rgba(10, 46, 90, 0.2);
 }
 </style>
+
 {% endblock %}

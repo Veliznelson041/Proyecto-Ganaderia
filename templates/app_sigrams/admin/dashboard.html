@@ -1,0 +1,155 @@
+{% extends 'app_sigrams/base.html' %}
+{% block title %}Dashboard Administrativo - SIGRAMS{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2 text-catamarca">Dashboard Administrativo</h1>
+    <div class="btn-toolbar">
+        <a href="{% url 'reporte_usuarios_pdf' %}" class="btn btn-outline-danger me-2">📄 PDF Usuarios</a>
+        <a href="{% url 'reporte_usuarios_excel' %}" class="btn btn-outline-success">📊 Excel Usuarios</a>
+    </div>
+</div>
+
+<!-- Tarjetas de resumen -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Usuarios</h5>
+                <p class="card-text h2">{{ total_usuarios }}</p>
+                <small>Admin: {{ admins }} | Empleados: {{ empleados }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">Solicitudes</h5>
+                <p class="card-text h2">{{ total_solicitudes }}</p>
+                <small>Pendientes: {{ solicitudes_pendientes }} | Revisión: {{ solicitudes_en_revision }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5 class="card-title">Productores</h5>
+                <p class="card-text h2">{{ total_productores }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <h5 class="card-title">Marcas</h5>
+                <p class="card-text h2">{{ total_marcas }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico de ingresos (últimos 12 meses) -->
+<div class="card mb-4">
+    <div class="card-header bg-catamarca text-white">
+        <h5 class="mb-0">Ingresos por sellados (últimos 12 meses)</h5>
+    </div>
+    <div class="card-body">
+        <canvas id="graficoIngresos" height="100"></canvas>
+    </div>
+</div>
+
+<!-- Últimas solicitudes -->
+<div class="card mb-4">
+    <div class="card-header bg-catamarca text-white">
+        <h5 class="mb-0">Últimas solicitudes</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Productor</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Solicitante</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in ultimas_solicitudes %}
+                <tr>
+                    <td>#{{ s.id }}</td>
+                    <td>{{ s.productor.nombre_completo|truncatechars:20 }}</td>
+                    <td>{{ s.get_tipo_tramite_display }}</td>
+                    <td>
+                        <span class="badge {% if s.estado == 'APROBADO' %}bg-success
+                                         {% elif s.estado == 'RECHAZADO' %}bg-danger
+                                         {% elif s.estado == 'EN_REVISION' %}bg-info
+                                         {% else %}bg-secondary{% endif %}">
+                            {{ s.get_estado_display }}
+                        </span>
+                    </td>
+                    <td>{{ s.solicitante.username|default:"-" }}</td>
+                    <td>{{ s.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Logs recientes -->
+<div class="card">
+    <div class="card-header bg-catamarca text-white">
+        <h5 class="mb-0">Logs recientes</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Modelo</th>
+                    <th>Acción</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs_recientes %}
+                <tr>
+                    <td>{{ log.user.username|default:"Sistema" }}</td>
+                    <td>{{ log.modelo }}</td>
+                    <td>{{ log.accion }}</td>
+                    <td>{{ log.timestamp|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var ctx = document.getElementById('graficoIngresos').getContext('2d');
+    var ingresos = {{ ingresos_por_mes|safe }};
+    var meses = ingresos.map(i => i.mes ? new Date(i.mes).toLocaleDateString('es-ES', { year:'numeric', month:'short' }) : '');
+    var montos = ingresos.map(i => i.total);
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [{
+                label: 'Ingresos ($)',
+                data: montos,
+                backgroundColor: '#0A2E5A',
+                borderColor: '#0A2E5A',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+});
+</script>
+{% endblock %}
