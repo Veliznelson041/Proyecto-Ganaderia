@@ -245,3 +245,42 @@ class NumeroOrdenValidator:
             )
         
         return value
+    
+
+class ImagenDuplicadaValidator:
+    """
+    Valida que la imagen subida no sea igual o similar a una ya existente.
+    Usar en el método clean_imagen_marca() del form.
+    """
+    def __init__(self, excluir_id=None):
+        self.excluir_id = excluir_id
+
+    def __call__(self, imagen_field):
+        from app_registros.image_similarity import (
+            calcular_hash, buscar_duplicados_marca,
+            buscar_duplicados_predefinida, HASH_THRESHOLD,
+        )
+        from django.core.exceptions import ValidationError
+
+        hash_nuevo = calcular_hash(imagen_field)
+        if not hash_nuevo:
+            return
+
+        duplicados_marcas = buscar_duplicados_marca(hash_nuevo, excluir_id=self.excluir_id)
+        if duplicados_marcas:
+            mejor = duplicados_marcas[0]
+            raise ValidationError(
+                f'Esta imagen ya está registrada para el productor "{mejor["productor"]}" '
+                f'(Marca #{mejor["numero_orden"]}). Usá una imagen diferente.',
+                code='imagen_duplicada_marca',
+            )
+
+        duplicados_pred = buscar_duplicados_predefinida(hash_nuevo)
+        if duplicados_pred:
+            mejor = duplicados_pred[0]
+            raise ValidationError(
+                f'Esta imagen ya existe como imagen predefinida: "{mejor["nombre"]}". '
+                f'Seleccionala desde el catálogo de imágenes predefinidas.',
+                code='imagen_duplicada_predefinida',
+            )
+

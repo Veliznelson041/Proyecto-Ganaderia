@@ -6,8 +6,11 @@ from .views import (
     EditarMarcaView,
     DetalleMarcaView,
     cargar_campos,
+    buscar_marca_por_nombre,
     get_marcas_por_productor,
     get_campos_por_productor,
+    buscar_imagen_similar,
+    verificar_imagen_ajax,
 )
 
 urlpatterns = [
@@ -55,6 +58,12 @@ urlpatterns = [
     path('ajax/marcas/<int:productor_id>/', get_marcas_por_productor, name='ajax_marcas'),
     path('ajax/campos/<int:productor_id>/', get_campos_por_productor, name='ajax_campos'),
     path('ajax/imagenes-marcas/', views.get_imagenes_marcas, name='ajax_imagenes_marcas'),
+    path('ajax/buscar-imagen-similar/', buscar_imagen_similar, name='ajax_buscar_imagen_similar'),
+    path('ajax/verificar-imagen/', verificar_imagen_ajax, name='ajax_verificar_imagen'),
+    # =========================
+    # BÚSQUEDA POR IMAGEN (página dedicada — escenario policial)
+    # =========================
+    path('marcas/buscar-por-imagen/', buscar_imagen_similar, name='buscar_imagen'),
 
     # =========================
     # OTRAS VISTAS
@@ -92,5 +101,8 @@ urlpatterns = [
     # Rutas para reportes de usuarios (solo para admin)
     path('reporte/usuarios/pdf/', views.reporte_usuarios_pdf, name='reporte_usuarios_pdf'),
     path('reporte/usuarios/excel/', views.reporte_usuarios_excel, name='reporte_usuarios_excel'),
+
+    # Ruta para buscar marcas por nombre (usada en AJAX)
+    path('ajax/buscar-marca-nombre/', buscar_marca_por_nombre, name='ajax_buscar_marca_nombre'),
 
 ]

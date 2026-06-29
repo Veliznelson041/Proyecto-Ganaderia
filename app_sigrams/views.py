@@ -9,12 +9,11 @@ from app_registros.models import UserProfile, Productor, MarcaSenal, Solicitud, 
 from app_registros.forms import ProductorForm, MarcaSenalForm, SolicitudForm
 from django.http import JsonResponse
 from django.views.generic import ListView, CreateView, UpdateView, DetailView
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.conf import settings
 
 from django.views.generic import ListView, CreateView, UpdateView, DetailView, DeleteView, TemplateView
 from django.views import View
-from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from app_registros.models import Productor, Campo, MarcaSenal
 
@@ -2066,5 +2065,145 @@ def reporte_usuarios_excel(request):
     response['Content-Disposition'] = 'attachment; filename="usuarios.xlsx"'
     wb.save(response)
     return response
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VISTAS DE BÚSQUEDA Y VERIFICACIÓN DE IMÁGENES
+# ─────────────────────────────────────────────────────────────────────────────
+
+@login_required
+def buscar_imagen_similar(request):
+    if request.method == 'GET':
+        return render(request, 'app_sigrams/marcas/buscar_imagen.html')
+
+    try:
+        from app_registros.image_similarity import calcular_hash_desde_bytes, buscar_en_todo
+    except ImportError as e:
+        return JsonResponse({'ok': False, 'error': f'Módulo no disponible: {e}'}, status=500)
+
+    imagen = request.FILES.get('imagen')
+    if not imagen:
+        return JsonResponse({'ok': False, 'error': 'No se recibió ninguna imagen.'}, status=400)
+
+    try:
+        img_bytes = imagen.read()
+        hash_nuevo = calcular_hash_desde_bytes(img_bytes)
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': f'Error al procesar imagen: {e}'}, status=422)
+
+    if not hash_nuevo:
+        return JsonResponse({'ok': False, 'error': 'No se pudo calcular el hash de la imagen.'}, status=422)
+
+    try:
+        resultados = buscar_en_todo(hash_nuevo)
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': f'Error en la búsqueda: {e}'}, status=500)
+
+    for marca in resultados['marcas']:
+        try:
+            marca['url_detalle'] = reverse('detalle_marca', kwargs={'pk': marca['id']})
+        except Exception:
+            marca['url_detalle'] = f"/marcas/{marca['id']}/"
+
+    total = len(resultados['marcas']) + len(resultados['predefinidas'])
+
+    return JsonResponse({'ok': True, 'hash': hash_nuevo, 'resultados': resultados, 'total': total})
+
+
+@login_required
+def verificar_imagen_ajax(request):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Método no permitido.'}, status=405)
+
+    try:
+        from app_registros.image_similarity import calcular_hash_desde_bytes, buscar_en_todo
+    except ImportError as e:
+        return JsonResponse({'ok': False, 'error': f'Módulo no disponible: {e}'}, status=500)
+
+    imagen = request.FILES.get('imagen')
+    if not imagen:
+        return JsonResponse({'ok': False, 'error': 'No se recibió imagen.'}, status=400)
+
+    excluir_id = request.POST.get('excluir_id')
+    try:
+        excluir_id = int(excluir_id) if excluir_id else None
+    except (ValueError, TypeError):
+        excluir_id = None
+
+    try:
+        img_bytes = imagen.read()
+        hash_nuevo = calcular_hash_desde_bytes(img_bytes)
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': f'Error al procesar imagen: {e}'}, status=422)
+
+    if not hash_nuevo:
+        return JsonResponse({'ok': False, 'error': 'No se pudo procesar la imagen.'}, status=422)
+
+    try:
+        resultados = buscar_en_todo(hash_nuevo, excluir_marca_id=excluir_id)
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': f'Error en la búsqueda: {e}'}, status=500)
+
+    total = len(resultados['marcas']) + len(resultados['predefinidas'])
+    es_duplicada = total > 0
+
+    mensaje = None
+    if resultados['marcas']:
+        mejor = resultados['marcas'][0]
+        mensaje = (f'⚠️ Esta imagen ya está registrada para "{mejor["productor"]}" '
+                   f'(Marca #{mejor["numero_orden"]}).')
+    elif resultados['predefinidas']:
+        mejor = resultados['predefinidas'][0]
+        mensaje = f'⚠️ Esta imagen ya existe como predefinida: "{mejor["nombre"]}".'
+
+    return JsonResponse({'ok': True, 'es_duplicada': es_duplicada, 'mensaje': mensaje, 'duplicados': resultados})
+
+
+@login_required
+def buscar_marca_por_nombre(request):
+    """
+    GET /ajax/buscar-marca-nombre/?q=texto
+    Busca marcas e imágenes predefinidas por nombre o descripción.
+    """
+    q = request.GET.get('q', '').strip()
+    if len(q) < 2:
+        return JsonResponse({'ok': False, 'error': 'Ingresá al menos 2 caracteres.'})
+
+    # Buscar en MarcaSenal por descripcion_marca
+    marcas_qs = MarcaSenal.objects.filter(
+        Q(descripcion_marca__icontains=q) |
+        Q(imagenes_predefinidas__nombre__icontains=q)
+    ).select_related('productor').distinct()[:20]
+
+    marcas = []
+    for m in marcas_qs:
+        try:
+            url = reverse('detalle_marca', kwargs={'pk': m.pk})
+        except Exception:
+            url = f"/marcas/{m.pk}/"
+        marcas.append({
+            'id': m.pk,
+            'numero_orden': m.numero_orden,
+            'productor': str(m.productor),
+            'productor_id': m.productor.pk,
+            'descripcion': m.descripcion_marca[:100],
+            'url_detalle': url,
+            'imagen_url': m.imagen_marca.url if m.imagen_marca else None,
+        })
+
+    # Buscar en ImagenMarcaPredefinida por nombre
+    predefinidas_qs = ImagenMarcaPredefinida.objects.filter(
+        nombre__icontains=q, activa=True
+    )[:10]
+
+    predefinidas = [{
+        'id': p.pk,
+        'nombre': p.nombre,
+        'tipo_marca': p.get_tipo_marca_display(),
+        'imagen_url': p.imagen.url if p.imagen else None,
+    } for p in predefinidas_qs]
+
+    total = len(marcas) + len(predefinidas)
+    return JsonResponse({'ok': True, 'query': q, 'marcas': marcas, 'predefinidas': predefinidas, 'total': total})
 
 

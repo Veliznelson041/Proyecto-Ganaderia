@@ -86,32 +86,45 @@
                 <div class="col-md-6">
                     <h5 class="text-catamarca mb-3">Marcas y Señales</h5>
 
-                    <!-- Galería de imágenes predefinidas con checkboxes -->
+<!-- Galería de imágenes predefinidas con checkboxes -->
 <div class="mb-3">
-    <label class="form-label">Seleccionar Imágenes Predefinidas (puede elegir varias)</label>
-    <div class="row g-2" id="galeria-marcas">
-        {% for imagen in imagenes_predefinidas %}
-        <div class="col-4 col-sm-3">
-            <div class="card marca-predefinida h-100 {% if imagen.id in form.imagenes_predefinidas.value %}selected border-primary border-2{% endif %}">
-                <img src="{{ imagen.imagen.url }}" class="card-img-top" alt="{{ imagen.nombre }}" style="height: 80px; object-fit: cover;">
-                <div class="card-body p-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" 
-                               name="imagenes_predefinidas" value="{{ imagen.id }}"
-                               id="img_{{ imagen.id }}"
-                               {% if imagen.id in form.imagenes_predefinidas.value %}checked{% endif %}>
-                        <label class="form-check-label small" for="img_{{ imagen.id }}">
-                            {{ imagen.nombre }}
-                        </label>
-                    </div>
-                </div>
-            </div>
+    <label class="form-label fw-semibold">Seleccionar Imágenes Predefinidas
+        <span id="badge-seleccionadas" class="badge bg-primary ms-2 d-none">0 seleccionadas</span>
+    </label>
+
+    <!-- Barra de búsqueda y filtro -->
+    <div class="input-group input-group-sm mb-2">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" id="filtro-galeria" class="form-control"
+               placeholder="Buscar imagen por nombre...">
+        <button type="button" class="btn btn-outline-secondary" id="btn-limpiar-filtro"
+                title="Limpiar búsqueda">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    <!-- Contenedor de imágenes -->
+    <div class="row g-2" id="galeria-marcas"></div>
+
+    <!-- Paginación -->
+    <div class="d-flex align-items-center justify-content-between mt-2" id="controles-paginacion" style="display:none!important">
+        <small class="text-muted" id="info-pagina"></small>
+        <nav>
+            <ul class="pagination pagination-sm mb-0" id="paginacion-galeria"></ul>
+        </nav>
+    </div>
+</div>
+
+<!-- Vista previa de imágenes seleccionadas -->
+<div id="imagen-seleccionada-container" class="mb-3" style="display: none;">
+    <label class="form-label">Imagen(es) Seleccionada(s):</label>
+    <div class="card">
+        <div class="card-body text-center">
+            <img id="imagen-seleccionada-preview" src="" alt="Vista previa"
+                 class="img-fluid mb-2" style="max-height: 150px;">
+            <p id="imagen-seleccionada-nombre" class="mb-0"></p>
+            <p id="imagen-seleccionada-count" class="small text-muted"></p>
         </div>
-        {% empty %}
-        <div class="col-12">
-            <p class="text-muted">No hay imágenes predefinidas cargadas.</p>
-        </div>
-        {% endfor %}
     </div>
 </div>
 
@@ -159,6 +172,9 @@
                             <div class="text-danger small">{{ form.imagen_marca.errors }}</div>
                         {% endif %}
                     </div>
+
+                    {% include "app_sigrams/marcas/_buscador_imagen.html" %}
+                    
 
                     <div class="mb-3">
                         <label for="{{ form.tipo_senal.id_for_label }}" class="form-label">Tipo de Señal</label>
@@ -344,74 +360,175 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 // =====================================================
-// FUNCIÓN PARA CARGAR IMÁGENES
+// GALERÍA PAGINADA DE IMÁGENES PREDEFINIDAS
 // =====================================================
+let _todasLasImagenes = [];
+let _paginaActual = 1;
+const _POR_PAGINA = 8;
+
 function cargarImagenesPredefinidas() {
-    const galeriaMarcas = document.getElementById('galeria-marcas');
-    if (!galeriaMarcas) return;
+    const galeria = document.getElementById('galeria-marcas');
+    if (!galeria) return;
+
+    // IDs ya seleccionados (modo edición)
+    const seleccionadosPrevios = Array.from(
+        document.querySelectorAll('input[name="imagenes_predefinidas"][type="hidden"]')
+    ).map(i => parseInt(i.value));
+
+    galeria.innerHTML = '<div class="col-12 text-center py-3 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Cargando imágenes...</div>';
 
     fetch('/ajax/imagenes-marcas/')
-        .then(response => {
-            if (!response.ok) throw new Error('Error al cargar imágenes');
-            return response.json();
-        })
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
         .then(data => {
-            galeriaMarcas.innerHTML = '';
-
-            if (!data || data.length === 0) {
-                galeriaMarcas.innerHTML =
-                    '<div class="col-12"><p class="text-muted">No hay imágenes predefinidas cargadas.</p></div>';
+            _todasLasImagenes = data || [];
+            if (_todasLasImagenes.length === 0) {
+                galeria.innerHTML = '<div class="col-12"><p class="text-muted">No hay imágenes predefinidas cargadas.</p></div>';
                 return;
             }
+            _paginaActual = 1;
+            renderizarPagina(_paginaActual, seleccionadosPrevios);
 
-            data.forEach(imagen => {
-                const col = document.createElement('div');
-                col.className = 'col-4 col-sm-3 mb-2';
-
-                col.innerHTML = `
-                    <div class="card marca-predefinida h-100 border-light">
-                        <img src="${imagen.imagen_url || imagen.imagen}"
-                             class="card-img-top"
-                             alt="${imagen.nombre}"
-                             style="height: 80px; object-fit: cover;">
-
-                        <div class="card-body p-1 text-center">
-                            <div class="form-check">
-                                <input class="form-check-input"
-                                       type="checkbox"
-                                       name="imagenes_predefinidas"
-                                       value="${imagen.id}"
-                                       id="imagen_${imagen.id}">
-                                <label class="form-check-label small"
-                                       for="imagen_${imagen.id}">
-                                    ${imagen.nombre}
-                                </label>
-                            </div>
-                            <small class="text-muted d-block">${imagen.tipo_marca}</small>
-                        </div>
-                    </div>
-                `;
-
-                galeriaMarcas.appendChild(col);
-
-                // Evento dinámico del checkbox
-                const checkbox = col.querySelector('input[type=checkbox]');
-                checkbox.addEventListener('change', function() {
-                    const card = this.closest('.marca-predefinida');
-                    if (this.checked) {
-                        card.classList.add('selected', 'border-primary', 'border-2');
-                    } else {
-                        card.classList.remove('selected', 'border-primary', 'border-2');
-                    }
-                    actualizarPreviewImagenes();
+            // Evento de búsqueda
+            const filtro = document.getElementById('filtro-galeria');
+            const btnLimpiar = document.getElementById('btn-limpiar-filtro');
+            if (filtro) {
+                filtro.addEventListener('input', function () {
+                    _paginaActual = 1;
+                    renderizarPagina(1);
                 });
-            });
+            }
+            if (btnLimpiar) {
+                btnLimpiar.addEventListener('click', function () {
+                    if (filtro) { filtro.value = ''; filtro.dispatchEvent(new Event('input')); }
+                });
+            }
         })
-        .catch(error => {
-            console.error('Error cargando imágenes:', error);
-            galeriaMarcas.innerHTML =
-                '<div class="col-12"><p class="text-muted">Error al cargar imágenes</p></div>';
+        .catch(() => {
+            galeria.innerHTML = '<div class="col-12"><p class="text-muted text-danger">Error al cargar imágenes.</p></div>';
         });
+}
+
+function renderizarPagina(pagina, seleccionadosPrevios) {
+    const filtro = (document.getElementById('filtro-galeria')?.value || '').toLowerCase().trim();
+    const galeria  = document.getElementById('galeria-marcas');
+    const infoPag  = document.getElementById('info-pagina');
+    const ulPag    = document.getElementById('paginacion-galeria');
+    const ctrlPag  = document.getElementById('controles-paginacion');
+
+    // Filtrar por nombre
+    const filtradas = filtro
+        ? _todasLasImagenes.filter(img => img.nombre.toLowerCase().includes(filtro))
+        : _todasLasImagenes;
+
+    const totalPaginas = Math.ceil(filtradas.length / _POR_PAGINA);
+    pagina = Math.max(1, Math.min(pagina, totalPaginas || 1));
+    _paginaActual = pagina;
+
+    const inicio = (pagina - 1) * _POR_PAGINA;
+    const pagActual = filtradas.slice(inicio, inicio + _POR_PAGINA);
+
+    // Obtener checkboxes ya marcados (persistir selección entre páginas)
+    const marcados = new Set(
+        Array.from(document.querySelectorAll('.marca-predefinida input[type=checkbox]:checked'))
+            .map(c => parseInt(c.value))
+    );
+    if (seleccionadosPrevios) seleccionadosPrevios.forEach(id => marcados.add(id));
+
+    // Renderizar tarjetas
+    galeria.innerHTML = '';
+    if (pagActual.length === 0) {
+        galeria.innerHTML = '<div class="col-12"><p class="text-muted">No se encontraron imágenes.</p></div>';
+    } else {
+        pagActual.forEach(imagen => {
+            const estaSeleccionada = marcados.has(imagen.id);
+            const col = document.createElement('div');
+            col.className = 'col-4 col-sm-3 mb-2';
+            col.innerHTML = `
+                <div class="card marca-predefinida h-100 ${estaSeleccionada ? 'selected border-primary border-2' : 'border-light'}">
+                    <img src="${imagen.imagen_url || imagen.imagen}"
+                         class="card-img-top" alt="${imagen.nombre}"
+                         style="height:80px; object-fit:cover;">
+                    <div class="card-body p-1 text-center">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                                   name="imagenes_predefinidas"
+                                   value="${imagen.id}"
+                                   id="imagen_${imagen.id}"
+                                   ${estaSeleccionada ? 'checked' : ''}>
+                            <label class="form-check-label small" for="imagen_${imagen.id}">
+                                ${imagen.nombre}
+                            </label>
+                        </div>
+                        <small class="text-muted d-block">${imagen.tipo_marca}</small>
+                    </div>
+                </div>`;
+            const cb = col.querySelector('input[type=checkbox]');
+            cb.addEventListener('change', function () {
+                this.closest('.marca-predefinida').classList.toggle('selected', this.checked);
+                this.closest('.marca-predefinida').classList.toggle('border-primary', this.checked);
+                this.closest('.marca-predefinida').classList.toggle('border-2', this.checked);
+                actualizarBadgeSeleccionadas();
+                actualizarPreviewImagenes();
+            });
+            galeria.appendChild(col);
+        });
+    }
+
+    // Info y paginación
+    if (infoPag) {
+        infoPag.textContent = filtradas.length > 0
+            ? `Mostrando ${inicio + 1}–${Math.min(inicio + _POR_PAGINA, filtradas.length)} de ${filtradas.length}`
+            : '';
+    }
+    if (ctrlPag) ctrlPag.style.display = filtradas.length > 0 ? 'flex' : 'none';
+
+    // Botones de página
+    if (ulPag) {
+        ulPag.innerHTML = '';
+        // Anterior
+        const liPrev = document.createElement('li');
+        liPrev.className = `page-item ${pagina <= 1 ? 'disabled' : ''}`;
+        liPrev.innerHTML = `<button class="page-link" type="button">&lsaquo;</button>`;
+        liPrev.querySelector('button').addEventListener('click', () => {
+            if (pagina > 1) renderizarPagina(pagina - 1);
+        });
+        ulPag.appendChild(liPrev);
+
+        // Números de página (máx 5 visibles)
+        const desde = Math.max(1, pagina - 2);
+        const hasta = Math.min(totalPaginas, desde + 4);
+        for (let p = desde; p <= hasta; p++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${p === pagina ? 'active' : ''}`;
+            li.innerHTML = `<button class="page-link" type="button">${p}</button>`;
+            const pCapture = p;
+            li.querySelector('button').addEventListener('click', () => renderizarPagina(pCapture));
+            ulPag.appendChild(li);
+        }
+
+        // Siguiente
+        const liNext = document.createElement('li');
+        liNext.className = `page-item ${pagina >= totalPaginas ? 'disabled' : ''}`;
+        liNext.innerHTML = `<button class="page-link" type="button">&rsaquo;</button>`;
+        liNext.querySelector('button').addEventListener('click', () => {
+            if (pagina < totalPaginas) renderizarPagina(pagina + 1);
+        });
+        ulPag.appendChild(liNext);
+    }
+
+    actualizarBadgeSeleccionadas();
+}
+
+function actualizarBadgeSeleccionadas() {
+    const total = document.querySelectorAll('.marca-predefinida input[type=checkbox]:checked').length;
+    const badge = document.getElementById('badge-seleccionadas');
+    if (!badge) return;
+    if (total > 0) {
+        badge.textContent = `${total} seleccionada${total > 1 ? 's' : ''}`;
+        badge.classList.remove('d-none');
+    } else {
+        badge.classList.add('d-none');
+    }
 }
 
 

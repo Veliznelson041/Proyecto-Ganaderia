@@ -121,7 +121,23 @@ class ImagenMarcaPredefinida(models.Model):
     tipo_marca = models.CharField(max_length=20, choices=TIPO_MARCA_CHOICES, default='FLANCO')
     descripcion = models.TextField(blank=True)
     activa = models.BooleanField(default=True)
-    
+    image_hash = models.CharField(
+        max_length=128, blank=True, null=True,
+        verbose_name='Hash perceptual', db_index=True,
+    )
+
+    def save(self, *args, **kwargs):
+        if self.imagen:
+            try:
+                from app_registros.image_similarity import calcular_hash
+                nuevo_hash = calcular_hash(self.imagen)
+                if nuevo_hash:
+                    self.image_hash = nuevo_hash
+            except Exception:
+                pass
+        super().save(*args, **kwargs)
+
+
     class Meta:
         verbose_name = "Imagen de Marca Predefinida"
         verbose_name_plural = "Imágenes de Marcas Predefinidas"
@@ -237,6 +253,12 @@ class MarcaSenal(models.Model):
     )
 
     observaciones = models.TextField(blank=True)
+    image_hash = models.CharField(
+        max_length=128, blank=True, null=True,
+        verbose_name='Hash perceptual de imagen_marca', db_index=True,
+    )
+
+
 
     # ============================
     # CARNET
@@ -276,16 +298,25 @@ class MarcaSenal(models.Model):
         ])
 
     def save(self, *args, **kwargs):
-        # 🔥 Generar número automático solo si no existe
+        # Generar número de orden automático
         if not self.numero_orden:
+            from django.db.models import Max
             ultimo = MarcaSenal.objects.aggregate(
                 Max('numero_orden')
             )['numero_orden__max']
-
             self.numero_orden = (ultimo or 0) + 1
 
-        super().save(*args, **kwargs)
-    
+        # Calcular hash perceptual si hay imagen de marca
+        if self.imagen_marca:
+            try:
+                from app_registros.image_similarity import calcular_hash
+                nuevo_hash = calcular_hash(self.imagen_marca)
+                if nuevo_hash:
+                    self.image_hash = nuevo_hash
+            except Exception:
+                pass
+
+        super().save(*args, **kwargs)    
 
 
 # ----------------------------------------

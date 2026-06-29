@@ -398,6 +398,17 @@ class MarcaSenalForm(forms.ModelForm):
                     'La fecha de vencimiento debe ser posterior a la fecha de inscripción.'
                 )
         return fecha_vencimiento
+    
+    def clean_imagen_marca(self):
+        imagen = self.cleaned_data.get('imagen_marca')
+        # Solo validar si es una imagen nueva (no una URL/string de archivo existente)
+        if imagen and hasattr(imagen, 'read'):
+            from app_registros.validators import ImagenDuplicadaValidator
+            validar = ImagenDuplicadaValidator(
+                excluir_id=self.instance.pk if self.instance.pk else None
+            )
+            validar(imagen)
+        return imagen
 
     def clean(self):
         cleaned_data = super().clean()
