@@ -245,20 +245,19 @@
                 <div class="dropdown-divider"></div>
                 
                 <small class="text-muted mb-2">GESTIÓN DE REGISTROS</small>
-                <a class="nav-link text-dark mb-2" href="{% url 'lista_marcas' %}">
+                <a class="nav-link text-dark mb-1 {% if '/marcas/' in request.path %}fw-bold{% endif %}"                   href="{% url 'lista_marcas' %}">
                     🏷️ Marcas y Señales
                 </a>
-                <a class="nav-link text-dark mb-2" href="{% url 'lista_productores' %}">
+                <a class="nav-link text-dark mb-2 ps-3 {% if '/productores/' in request.path %}fw-bold{% endif %}"
+                   href="{% url 'lista_productores' %}"
+                   style="font-size:0.9rem;">
                     👨‍🌾 Productores
                 </a>
-                <a class="nav-link text-dark mb-2" href="{% url 'lista_solicitudes' %}">
+                <a class="nav-link text-dark mb-2 {% if '/solicitudes/' in request.path %}fw-bold{% endif %}"
+                   href="{% url 'lista_solicitudes' %}">
                     📋 Solicitudes
                 </a>
 
-                <a class="nav-link text-dark mb-2" href="{% url 'reporte_ingresos' %}">
-                    <i class="fas fa-dollar-sign me-2"></i> Reporte de Ingresos
-                </a>
-                
                 {% if user_profile.rol == 'admin' %}
                 <a class="nav-link text-dark mb-2" href="{% url 'dashboard_admin' %}">
                     📊 Dashboard Admin

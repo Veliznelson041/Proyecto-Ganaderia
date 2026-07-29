@@ -293,20 +293,22 @@ class MarcaSenalForm(forms.ModelForm):
     )
 
     descripcion_marca = forms.CharField(
+        label='Descripción de la Señal',
         widget=forms.Textarea(attrs={
             'class': 'form-control',
             'rows': 3,
             'required': 'required',
-            'placeholder': 'Describa la marca detalladamente...'
+            'placeholder': 'Describa la señal detalladamente...'
         })
     )
 
     descripcion_senal = forms.CharField(
+        label='Descripción de Marca',
         required=False,
         widget=forms.Textarea(attrs={
             'class': 'form-control',
             'rows': 3,
-            'placeholder': 'Describa la señal si aplica...'
+            'placeholder': 'Describa la marca si aplica...'
         })
     )
 
@@ -341,6 +343,8 @@ class MarcaSenalForm(forms.ModelForm):
     asnal = ganado_field()
     ovino = ganado_field()
     cabrio = ganado_field()
+    porcino = ganado_field()
+    camelidos = ganado_field()
 
     class Meta:
         model = MarcaSenal
@@ -352,7 +356,8 @@ class MarcaSenalForm(forms.ModelForm):
             'productor': forms.Select(attrs={'class': 'form-control', 'required': 'required'}),
             'campo': forms.Select(attrs={'class': 'form-control', 'required': 'required'}),
             'tipo_tramite': forms.Select(attrs={'class': 'form-control', 'required': 'required'}),
-            'tipo_senal': forms.Select(attrs={'class': 'form-control'}),
+            'tipo_senal': forms.HiddenInput(),
+            'tipo_marca': forms.Select(attrs={'class': 'form-control'}),
             'estado': forms.Select(attrs={'class': 'form-control', 'required': 'required'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'imagen_marca': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
@@ -363,8 +368,7 @@ class MarcaSenalForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.fields['tipo_senal'].queryset = TipoSenal.objects.all()
-        self.fields['tipo_senal'].empty_label = "Seleccione un tipo de señal"
+        # tipo_senal oculto, se usa tipo_marca en su lugar
 
         self.fields['imagenes_predefinidas'].queryset = (
             ImagenMarcaPredefinida.objects.filter(activa=True)
@@ -559,7 +563,7 @@ class SolicitudForm(forms.ModelForm):
         documento_adjunto = cleaned_data.get('documento_adjunto')
 
         # Validación de marca/señal obligatoria según tipo
-        if tipo_tramite in ['RENOVACION', 'TRANSFERENCIA', 'BAJA', 'MODIFICACION']:
+        if tipo_tramite in ['RENOVACION', 'RENOVACION_TRANSFERENCIA', 'RENOVACION_MOD_SENALES', 'TRANSFERENCIA_MOD_SENAL', 'DUPLICADO', 'BAJA']:
             if not marca_senal:
                 self.add_error(
                     'marca_senal',

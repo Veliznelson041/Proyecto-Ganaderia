@@ -156,9 +156,8 @@ from django.core.validators import MinValueValidator
 class MarcaSenal(models.Model):
 
     TIPO_TRAMITE_CHOICES = [
-        ('NUEVA', 'Marca nueva'),
-        ('RENOVACION', 'Renovación'),
-        ('TRANSFERENCIA', 'Transferencia'),
+        ('REGISTRO_MARCA_SENAL', 'Registro Marca y Señal'),
+        ('REGISTRO_SENALES', 'Registro Señales solas'),
     ]
 
     ESTADO_CHOICES = [
@@ -214,9 +213,28 @@ class MarcaSenal(models.Model):
         blank=True
     )
 
+    TIPO_MARCA_OPCIONES = [
+        ('DIBUJO', 'Dibujo'),
+        ('INICIALES', 'Iniciales'),
+        ('NUMEROS', 'Números'),
+        ('LETRA_NUMERO', 'Letra y Número'),
+    ]
+    tipo_marca = models.CharField(
+        max_length=20,
+        choices=TIPO_MARCA_OPCIONES,
+        blank=True,
+        verbose_name='Tipo de Marca',
+    )
+
     descripcion_senal = models.TextField(
         blank=True,
         verbose_name="Descripción de la señal"
+    )
+
+    senales_orejeras = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name='Señales Orejeras',
     )
 
     imagenes_predefinidas = models.ManyToManyField(
@@ -235,6 +253,8 @@ class MarcaSenal(models.Model):
     asnal = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
     ovino = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
     cabrio = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
+    porcino = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
+    camelidos = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
 
     # ============================
     # ADMINISTRATIVO
@@ -294,7 +314,9 @@ class MarcaSenal(models.Model):
             self.mular,
             self.asnal,
             self.ovino,
-            self.cabrio
+            self.cabrio,
+            self.porcino,
+            self.camelidos,
         ])
 
     def save(self, *args, **kwargs):
@@ -334,11 +356,14 @@ class Solicitud(models.Model):
     # ENUMS
     # ----------------------------------------
     TIPO_TRAMITE_CHOICES = [
-        ('NUEVO', 'Registro nuevo'),
         ('RENOVACION', 'Renovación'),
-        ('TRANSFERENCIA', 'Transferencia'),
+        ('RENOVACION_TRANSFERENCIA', 'Renovación y Transferencia'),
+        ('RENOVACION_MOD_SENALES', 'Renovación y Modificación de Señales'),
+        ('TRANSFERENCIA_MOD_SENAL', 'Transferencia y Modificación de Señal'),
+        ('DUPLICADO', 'Duplicado'),
         ('BAJA', 'Baja'),
-        ('MODIFICACION', 'Modificación'),
+        ('REGISTRO_MARCAS_SENALES', 'Registro Marcas y Señales'),
+        ('REGISTRO_SENALES', 'Registro Señales'),
     ]
 
     ESTADO_CHOICES = [
@@ -359,10 +384,12 @@ class Solicitud(models.Model):
     TIPO_GANADO_CHOICES = [
         ('VACUNO', 'Vacuno'),
         ('EQUINO', 'Equino'),
+        ('MULAR', 'Mular'),
+        ('ASNAL', 'Asnal'),
         ('OVINO', 'Ovino'),
         ('CAPRINO', 'Caprino'),
         ('PORCINO', 'Porcino'),
-        ('MIXTO', 'Mixto'),
+        ('CAMELIDOS', 'Camélidos'),
     ]
 
     # ----------------------------------------
@@ -386,7 +413,7 @@ class Solicitud(models.Model):
     )
 
     tipo_tramite = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=TIPO_TRAMITE_CHOICES
     )
 

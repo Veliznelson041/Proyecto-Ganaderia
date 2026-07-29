@@ -109,6 +109,16 @@
                     </div>
                     
                     <div class="mt-4">
+                        <div class="mb-3 d-flex justify-content-center">
+                        <div class="g-recaptcha"
+                             data-sitekey="6Letd2stAAAAALTt16k3hvnOirYrRltQNkFHAhyd">
+                        </div>
+                    </div>
+                    {% if recaptcha_error %}
+                    <div class="alert alert-danger small">
+                        {{ recaptcha_error }}
+                    </div>
+                    {% endif %}
                         <button type="submit" class="btn btn-catamarca btn-lg w-100">
                             📝 Registrar Cuenta
                         </button>
@@ -230,4 +240,8 @@ document.addEventListener('DOMContentLoaded', function() {
     font-size: 0.875em;
 }
 </style>
+
+{% block scripts %}
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+{% endblock %}
 {% endblock %}

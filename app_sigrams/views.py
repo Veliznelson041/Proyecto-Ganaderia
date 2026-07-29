@@ -394,17 +394,48 @@ def dashboard_admin(request):
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('home')
-        
+
     if request.method == 'POST':
+        # Verificar reCAPTCHA
+        recaptcha_response = request.POST.get('g-recaptcha-response')
+        recaptcha_error = None
+
+        if not recaptcha_response:
+            recaptcha_error = 'Por favor completá el reCAPTCHA.'
+        else:
+            import urllib.request
+            import urllib.parse
+            import json as _json
+            private_key = settings.RECAPTCHA_PRIVATE_KEY
+            data = urllib.parse.urlencode({
+                'secret': private_key,
+                'response': recaptcha_response,
+                'remoteip': request.META.get('REMOTE_ADDR'),
+            }).encode('utf-8')
+            try:
+                req = urllib.request.urlopen(
+                    'https://www.google.com/recaptcha/api/siteverify',
+                    data=data,
+                    timeout=5
+                )
+                result = _json.loads(req.read().decode('utf-8'))
+                if not result.get('success'):
+                    recaptcha_error = 'Verificación reCAPTCHA fallida. Intentá de nuevo.'
+            except Exception:
+                recaptcha_error = 'No se pudo verificar el reCAPTCHA. Intentá de nuevo.'
+
+        if recaptcha_error:
+            return render(request, 'app_sigrams/login.html', {
+                'recaptcha_error': recaptcha_error
+            })
+
         username = request.POST['username']
         password = request.POST['password']
         user = authenticate(request, username=username, password=password)
-        
+
         if user is not None:
             login(request, user)
             messages.success(request, f'¡Bienvenido/a {user.username}!')
-            
-            # Redirigir según el rol del usuario
             try:
                 profile = UserProfile.objects.get(user=user)
                 if profile.rol == 'admin':
@@ -415,10 +446,9 @@ def login_view(request):
                     return redirect('home')
             except UserProfile.DoesNotExist:
                 return redirect('home')
-                
         else:
             messages.error(request, 'Usuario o contraseña incorrectos.')
-    
+
     return render(request, 'app_sigrams/login.html')
 
 
@@ -442,6 +472,40 @@ def register_view(request):
         return redirect('home')
 
     if request.method == 'POST':
+        # Verificar reCAPTCHA
+        recaptcha_response = request.POST.get('g-recaptcha-response')
+        recaptcha_error = None
+
+        if not recaptcha_response:
+            recaptcha_error = 'Por favor completá el reCAPTCHA.'
+        else:
+            import urllib.request
+            import urllib.parse
+            import json as _json
+            data = urllib.parse.urlencode({
+                'secret': settings.RECAPTCHA_PRIVATE_KEY,
+                'response': recaptcha_response,
+                'remoteip': request.META.get('REMOTE_ADDR'),
+            }).encode('utf-8')
+            try:
+                req = urllib.request.urlopen(
+                    'https://www.google.com/recaptcha/api/siteverify',
+                    data=data,
+                    timeout=5
+                )
+                result = _json.loads(req.read().decode('utf-8'))
+                if not result.get('success'):
+                    recaptcha_error = 'Verificación reCAPTCHA fallida. Intentá de nuevo.'
+            except Exception:
+                recaptcha_error = 'No se pudo verificar el reCAPTCHA. Intentá de nuevo.'
+
+        if recaptcha_error:
+            form = CustomUserCreationForm(request.POST)
+            return render(request, 'app_sigrams/register.html', {
+                'form': form,
+                'recaptcha_error': recaptcha_error
+            })
+
         form = CustomUserCreationForm(request.POST)
 
         if form.is_valid():
@@ -933,24 +997,52 @@ class NuevaMarcaView(CreateView):
     form_class = MarcaSenalForm
     template_name = 'app_sigrams/marcas/form.html'
     success_url = reverse_lazy('lista_marcas')
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo'] = 'Nueva Marca y Señal'
         context['imagenes_predefinidas'] = ImagenMarcaPredefinida.objects.filter(activa=True)
         return context
 
+    def form_valid(self, form):
+        marca = form.save(commit=False)
+        # Guardar señales orejeras desde el campo oculto del formulario
+        senales_json = self.request.POST.get('senales_orejeras_json', '{}')
+        try:
+            import json
+            marca.senales_orejeras = json.loads(senales_json)
+        except Exception:
+            marca.senales_orejeras = {}
+        marca.save()
+        form.save_m2m()
+        return redirect(self.success_url)
+
 class EditarMarcaView(UpdateView):
     model = MarcaSenal
     form_class = MarcaSenalForm
     template_name = 'app_sigrams/marcas/form.html'
     success_url = reverse_lazy('lista_marcas')
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo'] = f'Editar Marca y Señal #{self.object.numero_orden}'
         context['imagenes_predefinidas'] = ImagenMarcaPredefinida.objects.filter(activa=True)
+        # Pasar las señales guardadas para pre-cargar la herramienta
+        context['senales_guardadas'] = json.dumps(
+            self.object.senales_orejeras or {}
+        )
         return context
+
+    def form_valid(self, form):
+        marca = form.save(commit=False)
+        senales_json = self.request.POST.get('senales_orejeras_json', '{}')
+        try:
+            marca.senales_orejeras = json.loads(senales_json)
+        except Exception:
+            marca.senales_orejeras = {}
+        marca.save()
+        form.save_m2m()
+        return redirect(self.success_url)
 
 class DetalleMarcaView(DetailView):
     model = MarcaSenal

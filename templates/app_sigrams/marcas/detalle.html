@@ -114,6 +114,69 @@
     </div>
 </div>
 
+{% if marca.senales_orejeras %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header bg-catamarca text-white">
+                <h5 class="mb-0">🐄 Señales Orejeras</h5>
+            </div>
+            <div class="card-body">
+                <div class="bg-light rounded-3 border mb-3">
+                    <svg id="svg-orejas-detalle" viewBox="0 0 800 275" style="width:100%;display:block;">
+                        <g transform="translate(800,0) scale(-1,1)">
+                            <path d="M 468,128 C 532,113 612,118 659,134 Q 681,150 659,166 C 612,182 532,187 468,172 Z" fill="#D4A76A" stroke="#8B6914" stroke-width="2"/>
+                            <line x1="490" y1="133" x2="650" y2="133" stroke="#C49A3A" stroke-width="0.7" opacity="0.35"/>
+                            <line x1="490" y1="142" x2="655" y2="142" stroke="#C49A3A" stroke-width="0.7" opacity="0.35"/>
+                            <line x1="490" y1="150" x2="656" y2="150" stroke="#C49A3A" stroke-width="0.7" opacity="0.35"/>
+                            <line x1="490" y1="158" x2="655" y2="158" stroke="#C49A3A" stroke-width="0.7" opacity="0.35"/>
+                            <line x1="490" y1="167" x2="650" y2="167" stroke="#C49A3A" stroke-width="0.7" opacity="0.35"/>
+                            <g id="det-marcas-izq"></g>
+                        </g>
+                        <text x="192" y="107" text-anchor="middle" font-size="12" fill="#1D4ED8" font-weight="700">IZQ</text>
+                        <path d="M 468,128 C 532,113 612,118 659,134 Q 681,150 659,166 C 612,182 532,187 468,172 Z" fill="#D4A76A" stroke="#8B6914" stroke-width="2"/>
+                        <line x1="490" y1="133" x2="650" y2="133" stroke="#C49A3A" stroke-width="0.7" opacity="0.35"/>
+                        <line x1="490" y1="142" x2="655" y2="142" stroke="#C49A3A" stroke-width="0.7" opacity="0.35"/>
+                        <line x1="490" y1="150" x2="656" y2="150" stroke="#C49A3A" stroke-width="0.7" opacity="0.35"/>
+                        <line x1="490" y1="158" x2="655" y2="158" stroke="#C49A3A" stroke-width="0.7" opacity="0.35"/>
+                        <line x1="490" y1="167" x2="650" y2="167" stroke="#C49A3A" stroke-width="0.7" opacity="0.35"/>
+                        <g id="det-marcas-der"></g>
+                        <text x="608" y="107" text-anchor="middle" font-size="12" fill="#B91C1C" font-weight="700">DER</text>
+                        <ellipse cx="468" cy="150" rx="22" ry="24" fill="#D4A76A" stroke="#8B6914" stroke-width="1.5"/>
+                        <ellipse cx="332" cy="150" rx="22" ry="24" fill="#D4A76A" stroke="#8B6914" stroke-width="1.5"/>
+                        <ellipse cx="400" cy="182" rx="73" ry="85" fill="#D4A76A" stroke="#8B6914" stroke-width="2"/>
+                        <ellipse cx="400" cy="112" rx="41" ry="31" fill="#C8996A" stroke="#8B6914" stroke-width="1.5"/>
+                        <ellipse cx="388" cy="109" rx="8" ry="6" fill="#5C2D0A"/>
+                        <ellipse cx="412" cy="109" rx="8" ry="6" fill="#5C2D0A"/>
+                        <ellipse cx="373" cy="167" rx="12" ry="9" fill="#2C1A0E"/>
+                        <ellipse cx="427" cy="167" rx="12" ry="9" fill="#2C1A0E"/>
+                        <circle cx="375" cy="164" r="3.5" fill="white"/>
+                        <circle cx="429" cy="164" r="3.5" fill="white"/>
+                        <rect x="16" y="256" width="11" height="11" fill="#1D4ED8" rx="2"/>
+                        <text x="32" y="266" font-size="11" fill="#6B7280">Izquierda</text>
+                        <rect x="112" y="256" width="11" height="11" fill="#B91C1C" rx="2"/>
+                        <text x="128" y="266" font-size="11" fill="#6B7280">Derecha</text>
+                    </svg>
+                </div>
+
+                {% if marca.senales_orejeras.izquierda %}
+                <p class="mb-1">
+                    <strong style="color:#1D4ED8;">Izquierda:</strong>
+                    {{ marca.senales_orejeras.izquierda|join:", " }}
+                </p>
+                {% endif %}
+                {% if marca.senales_orejeras.derecha %}
+                <p class="mb-0">
+                    <strong style="color:#B91C1C;">Derecha:</strong>
+                    {{ marca.senales_orejeras.derecha|join:", " }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="row">
     <div class="col-12">
         <div class="card mb-4">
@@ -127,7 +190,7 @@
                         <p class="h4">{{ marca.vacuno }}</p>
                     </div>
                     <div class="col-md-2">
-                        <h6>Caballar</h6>
+                        <h6>Equino</h6>
                         <p class="h4">{{ marca.caballar }}</p>
                     </div>
                     <div class="col-md-2">
@@ -143,8 +206,16 @@
                         <p class="h4">{{ marca.ovino }}</p>
                     </div>
                     <div class="col-md-2">
-                        <h6>Cabrio</h6>
+                        <h6>Caprino</h6>
                         <p class="h4">{{ marca.cabrio }}</p>
+                    </div>
+                    <div class="col-md-2">
+                        <h6>Porcino</h6>
+                        <p class="h4">{{ marca.porcino }}</p>
+                    </div>
+                    <div class="col-md-2">
+                        <h6>Camélidos</h6>
+                        <p class="h4">{{ marca.camelidos }}</p>
                     </div>
                 </div>
                 <div class="row mt-3">
@@ -233,4 +304,58 @@
         </div>
     </div>
 </div>
+{% block scripts %}
+<script>
+(function(){
+var LC="#1D4ED8", RC="#B91C1C";
+var datos = null;
+try {
+    datos = {{ marca.senales_orejeras|default:"{}"|safe }};
+} catch(e) { return; }
+if (!datos) return;
+
+function shape(k,col){
+ var op=0.88,sw=2;
+ var f='fill="'+col+'" stroke="'+col+'" stroke-width="'+sw+'" opacity="'+op+'" stroke-linejoin="round"';
+ var s='fill="none" stroke="'+col+'" stroke-width="5.5" opacity="'+op+'" stroke-linecap="round"';
+ var MAP={
+  "Trébol":'<circle cx="663" cy="141" r="9" '+f+'/><circle cx="675" cy="154" r="9" '+f+'/><circle cx="651" cy="154" r="9" '+f+'/>',
+  "Cuadrado en la Punta":'<rect x="648" y="132" width="35" height="33" '+f+'/>',
+  "Cuadrado de Abajo":'<rect x="539" y="167" width="32" height="25" '+f+'/>',
+  "Cuadrado de Arriba":'<rect x="539" y="107" width="32" height="25" '+f+'/>',
+  "Anzuelo de Abajo":'<path d="M574,174 C574,195 553,199 546,183 C539,167 548,155 561,155" '+s+'/>',
+  "Anzuelo de Arriba":'<path d="M574,126 C574,105 553,101 546,117 C539,133 548,145 561,145" '+s+'/>',
+  "Zarcillo de Abajo":'<path d="M614,163 L614,183 Q607,191 600,183 L600,163" '+f+'/>',
+  "Zarcillo de Arriba":'<path d="M614,137 L614,117 Q607,109 600,117 L600,137" '+f+'/>',
+  "Raja en la Punta":'<rect x="640" y="147" width="43" height="6" rx="3" '+f+'/>',
+  "Tajo de Abajo":'<path d="M535,174 L562,174 L554,158 Z" '+f+'/>',
+  "Tajo de Arriba":'<path d="M535,126 L562,126 L554,142 Z" '+f+'/>',
+  "Ojo de Llave":'<circle cx="561" cy="141" r="12" '+f+'/><rect x="556" y="150" width="10" height="19" '+f+'/>',
+  "Agujero en el Centro":'<circle cx="561" cy="150" r="14" '+f+'/>',
+  "Hoja de Higuera":'<path d="M682,150 C669,130 646,128 652,150 C646,172 669,170 682,150 M658,128 C655,116 641,118 647,128 M658,172 C655,184 641,182 647,172" '+f+' stroke-width="1.5"/>',
+  "Punta de Lanza":'<path d="M645,129 L683,150 L645,171 L658,150 Z" '+f+'/>',
+  "Horqueta en la Punta":'<path d="M647,129 C664,138 683,148 664,159 C645,170 644,170 644,170" '+s+' stroke-width="4.5"/>',
+  "Horqueta de Abajo":'<path d="M537,174 Q558,199 579,174" '+s+'/>',
+  "Horqueta de Arriba":'<path d="M537,126 Q558,101 579,126" '+s+'/>',
+  "Sacado de Abajo":'<path d="M529,174 Q560,210 591,174 Z" '+f+'/>',
+  "Sacado de Arriba":'<path d="M529,126 Q560,90 591,126 Z" '+f+'/>',
+  "Muesca de Abajo":'<path d="M470,174 L484,160 L498,174 Z" '+f+'/>',
+  "Muesca de Arriba":'<path d="M470,126 L484,140 L498,126 Z" '+f+'/>',
+ };
+ return MAP[k] || "";
+}
+
+var gi=document.getElementById("det-marcas-izq");
+var gd=document.getElementById("det-marcas-der");
+if(!gi||!gd) return;
+
+if(datos.izquierda){
+ datos.izquierda.forEach(function(n){ gi.innerHTML+=shape(n,LC); });
+}
+if(datos.derecha){
+ datos.derecha.forEach(function(n){ gd.innerHTML+=shape(n,RC); });
+}
+})();
+</script>
+{% endblock %}
 {% endblock %}

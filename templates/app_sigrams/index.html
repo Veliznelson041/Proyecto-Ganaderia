@@ -424,7 +424,7 @@
                     <i class="bi bi-camera-fill text-white fs-6"></i>
                 </div>
                 <div>
-                    <h6 class="mb-0 text-white fw-bold">Buscar productor por imagen o nombre de marca</h6>
+                    <h6 class="mb-0 text-white fw-bold">Buscar productor por nombre de marca o descripcion.</h6>
                     <small class="text-white text-opacity-75">Identificación rápida de animales sueltos o dudas de registro</small>
                 </div>
                 <span class="badge bg-warning text-dark ms-auto">Identificación rápida</span>
@@ -434,12 +434,12 @@
                 <!-- Pestañas de modo -->
                 <ul class="nav nav-pills mb-4" id="tabs-busqueda-modo">
                     <li class="nav-item">
-                        <button class="nav-link active" id="tab-btn-imagen" type="button">
+                        <!-- <button class="nav-link active" id="tab-btn-imagen" type="button">
                             <i class="bi bi-camera me-1"></i> Buscar por imagen
-                        </button>
+                        </button> -->
                     </li>
                     <li class="nav-item">
-                        <button class="nav-link" id="tab-btn-nombre" type="button">
+                        <button class="nav-link active" id="tab-btn-nombre" type="button">
                             <i class="bi bi-fonts me-1"></i> Buscar por nombre / descripción
                         </button>
                     </li>
@@ -451,7 +451,7 @@
                     <div class="col-md-4">
 
                         <!-- MODO IMAGEN -->
-                        <div id="panel-entrada-imagen">
+                        <!-- <div id="panel-entrada-imagen">
                             <label class="form-label fw-semibold small">
                                 <i class="bi bi-image me-1 text-primary"></i> Fotografía de la marca
                             </label>
@@ -478,10 +478,10 @@
                                     class="btn btn-primary w-100" disabled>
                                 <i class="bi bi-search me-2"></i>Buscar por imagen
                             </button>
-                        </div>
+                        </div> -->
 
                         <!-- MODO NOMBRE -->
-                        <div id="panel-entrada-nombre" class="d-none">
+                        <div id="panel-entrada-nombre">
                             <label class="form-label fw-semibold small">
                                 <i class="bi bi-fonts me-1 text-primary"></i>
                                 Nombre o descripción de la marca
@@ -626,11 +626,11 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================================
 (function () {
     const CSRF = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
-    const URL_IMAGEN = '/ajax/buscar-imagen-similar/';
+    /* const URL_IMAGEN = '/ajax/buscar-imagen-similar/'; */
     const URL_NOMBRE = '/ajax/buscar-marca-nombre/';
 
     // ── Pestañas ────────────────────────────────────────────
-    const tabImagen = document.getElementById('tab-btn-imagen');
+    /* const tabImagen = document.getElementById('tab-btn-imagen');
     const tabNombre = document.getElementById('tab-btn-nombre');
     const panelImg  = document.getElementById('panel-entrada-imagen');
     const panelNom  = document.getElementById('panel-entrada-nombre');
@@ -647,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
         tabNombre.classList.add('active'); tabImagen.classList.remove('active');
         panelNom.classList.remove('d-none'); panelImg.classList.add('d-none');
         resetResultados();
-    });
+    }); */
 
     // ── Helpers de UI ────────────────────────────────────────
     function show(id) { document.getElementById(id)?.classList.remove('d-none'); }
@@ -742,7 +742,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ── MODO IMAGEN ──────────────────────────────────────────
-    const input      = document.getElementById('img-dash-busqueda');
+    /* const input      = document.getElementById('img-dash-busqueda');
     const btnBuscar  = document.getElementById('btn-dash-buscar');
     const btnLimpiar = document.getElementById('btn-dash-limpiar');
     const zonaDrop   = document.getElementById('zona-drop');
@@ -812,7 +812,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error(err);
                 });
         });
-    }
+    } */
 
     // ── MODO NOMBRE ──────────────────────────────────────────
     const inputNombre = document.getElementById('input-busqueda-nombre');

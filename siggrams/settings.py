@@ -151,3 +151,19 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'index'
 LOGOUT_REDIRECT_URL = 'login'
 
+# Email para password reset
+# En desarrollo los emails se muestran en la consola del servidor
+#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+#DEFAULT_FROM_EMAIL = 'SIGRAMS Ganadería <no-reply@sigrams.gob.ar>'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'Veliznelson041@gmail.com'
+EMAIL_HOST_PASSWORD = 'hgsq lvig ykuf gbpt'
+DEFAULT_FROM_EMAIL = 'SIGRAMS Ganadería <Veliznelson041@gmail.com>'
+
+# reCAPTCHA
+RECAPTCHA_PUBLIC_KEY = '6Letd2stAAAAALTt16k3hvnOirYrRltQNkFHAhyd'
+RECAPTCHA_PRIVATE_KEY = '6Letd2stAAAAAF1cioXDizr9nz3_Y8b1qIvKrrNe'
