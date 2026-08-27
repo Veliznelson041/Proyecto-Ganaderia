@@ -65,6 +65,17 @@
                 </table>
             </div>
         </div>
+
+        {% if marca.campo.poligono %}
+        <div class="card mb-4">
+            <div class="card-header bg-catamarca text-white">
+                <h5 class="mb-0">🗺️ Ubicación del Campo</h5>
+            </div>
+            <div class="card-body">
+                <div id="map-detalle-campo" style="height:320px;border-radius:8px;border:2px solid #0A2E5A;"></div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <div class="col-md-6">
@@ -304,7 +315,26 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
 {% block scripts %}
+{% if marca.campo.poligono %}
+<script>
+(function(){
+    var mapDetalle = L.map('map-detalle-campo');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(mapDetalle);
+
+    var geojson = {{ marca.campo.poligono.geojson|safe }};
+    var layer = L.geoJSON(geojson, {
+        style: { color: '#198754', weight: 3, fillOpacity: 0.25 }
+    }).addTo(mapDetalle);
+    layer.bindTooltip('{{ marca.campo.nombre|escapejs }}');
+    mapDetalle.fitBounds(layer.getBounds(), { padding: [20, 20] });
+})();
+</script>
+{% endif %}
 <script>
 (function(){
 var LC="#1D4ED8", RC="#B91C1C";
@@ -357,5 +387,4 @@ if(datos.derecha){
 }
 })();
 </script>
-{% endblock %}
 {% endblock %}

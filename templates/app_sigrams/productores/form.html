@@ -84,7 +84,7 @@
                     
                     <div class="map-container mb-3">
                         <!-- Panel de coordenadas y controles -->
-                        <div class="map-controls">
+                        <div class="map-controls" style="display:none;">
                             <div class="coordinates-panel">
                                 <strong>Coordenadas:</strong>
                                 <span id="coordinates-display">No seleccionadas</span>
@@ -254,19 +254,9 @@
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="{{ form.campo.id_for_label }}" class="form-label">Nombre del Campo</label>
-                        {{ form.campo }}
-                        {% if form.campo.errors %}
-                        <div class="text-danger small mt-1">
-                            {% for error in form.campo.errors %}
-                            <div>{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-                        </div>
+                    
 
-                        <div class="mb-3">
+                        <div class="mb-3" style="display:none;">
                             <label for="{{ form.area_hectareas.id_for_label }}" class="form-label">Área (hectáreas)</label>
                             {{ form.area_hectareas }}
                             {% if form.area_hectareas.errors %}
@@ -637,12 +627,7 @@ function reverseGeocode(lat, lng) {
                     }, 500);
                 }
                 
-                // Sugerir nombre del campo basado en la localidad o dirección
-                if (localidad) {
-                    document.getElementById('{{ form.campo.id_for_label }}').value = `Campo ${localidad}`;
-                } else if (calle) {
-                    document.getElementById('{{ form.campo.id_for_label }}').value = `Campo ${calle.split(' ')[0]}`;
-                }
+                
             }
         })
         .catch(error => {
@@ -742,7 +727,6 @@ function clearSelection() {
     document.getElementById('{{ form.municipio.id_for_label }}').value = '';
     document.getElementById('{{ form.departamento.id_for_label }}').value = '';
     document.getElementById('{{ form.provincia.id_for_label }}').value = '';
-    document.getElementById('{{ form.campo.id_for_label }}').value = '';
 }
 
 // Actualizar mapa (recargar productores)

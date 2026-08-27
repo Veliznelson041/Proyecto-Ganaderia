@@ -5,6 +5,9 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
+from django.contrib.gis.geos import GEOSGeometry, GEOSException
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.http import require_POST
 from app_registros.models import UserProfile, Productor, MarcaSenal, Solicitud, Campo, TipoSenal, ImagenMarcaPredefinida
 from app_registros.forms import ProductorForm, MarcaSenalForm, SolicitudForm
 from django.http import JsonResponse
@@ -47,43 +50,159 @@ import json
 def get_campos_por_productor(request, productor_id):
     """Obtener campos de un productor específico (para AJAX)"""
     try:
-        # Verificar si el productor existe
-        from app_registros.models import Productor, Campo
         productor = Productor.objects.get(id=productor_id)
-        
-        # Obtener campos del productor
+
+        # Solo listar campos existentes. Ya NO se autocrea ninguno:
+        # el campo se crea explícitamente cuando el usuario dibuja
+        # su polígono en el formulario de Marca (ver crear_campo_poligono).
         campos = Campo.objects.filter(productor_id=productor_id)
-        
-        if not campos.exists():
-            # Si no hay campos, crear uno automáticamente basado en los datos del productor
-            campo = Campo.objects.create(
-                nombre=productor.campo or f"Campo de {productor.nombre} {productor.apellido}",
-                productor=productor,
-                distrito=productor.localidad or "Sin especificar",
-                departamento=productor.departamento or "Sin especificar",
-                area_hectareas=productor.area_hectareas or 0,
-                latitud=productor.latitud,
-                longitud=productor.longitud
-            )
-            campos = Campo.objects.filter(productor_id=productor_id)
-        
-        # Preparar datos para JSON
+
+        # Preparar datos para JSON, incluyendo el polígono (GeoJSON) si existe
         data = []
         for campo in campos:
             data.append({
                 'id': campo.id,
                 'nombre': campo.nombre,
                 'distrito': campo.distrito or '',
-                'departamento': campo.departamento or ''
+                'departamento': campo.departamento or '',
+                'poligono': json.loads(campo.poligono.geojson) if campo.poligono else None,
             })
-        
+
         return JsonResponse(data, safe=False)
-        
+
     except Productor.DoesNotExist:
         return JsonResponse([], safe=False)
     except Exception as e:
         print(f"Error en get_campos_por_productor: {str(e)}")
         return JsonResponse([{'error': str(e)}], safe=False, status=500)
+    
+
+@login_required
+@require_POST
+def crear_campo_poligono(request):
+    """
+    Crea un Campo a partir de un polígono dibujado en el mapa (Leaflet Draw).
+    Espera POST con: productor_id, nombre, distrito, departamento,
+    area_hectareas (opcional) y poligono_geojson (string GeoJSON del polígono).
+    """
+    try:
+        productor_id = request.POST.get('productor_id')
+        nombre = request.POST.get('nombre', '').strip()
+        distrito = request.POST.get('distrito', '').strip()
+        departamento = request.POST.get('departamento', '').strip()
+        area_hectareas = request.POST.get('area_hectareas') or None
+        poligono_geojson = request.POST.get('poligono_geojson')
+
+        if not productor_id:
+            return JsonResponse({'ok': False, 'error': 'Falta el productor.'}, status=400)
+        if not nombre:
+            return JsonResponse({'ok': False, 'error': 'El nombre del campo es obligatorio.'}, status=400)
+        if not poligono_geojson:
+            return JsonResponse({'ok': False, 'error': 'Debe dibujar el polígono del campo en el mapa.'}, status=400)
+
+        productor = get_object_or_404(Productor, pk=productor_id)
+
+        try:
+            geom = GEOSGeometry(poligono_geojson)
+        except (GEOSException, ValueError, TypeError):
+            return JsonResponse({'ok': False, 'error': 'El polígono recibido no es válido.'}, status=400)
+
+        if geom.geom_type != 'Polygon':
+            return JsonResponse({'ok': False, 'error': 'La geometría debe ser un polígono.'}, status=400)
+
+        if geom.srid is None:
+            geom.srid = 4326
+
+        centroide = geom.centroid
+
+        campo = Campo.objects.create(
+            nombre=nombre,
+            productor=productor,
+            distrito=distrito or "Sin especificar",
+            departamento=departamento or "Sin especificar",
+            area_hectareas=area_hectareas,
+            poligono=geom,
+            latitud=centroide.y,
+            longitud=centroide.x,
+        )
+
+        return JsonResponse({
+            'ok': True,
+            'campo': {
+                'id': campo.id,
+                'nombre': campo.nombre,
+                'distrito': campo.distrito or '',
+                'departamento': campo.departamento or '',
+                'poligono': json.loads(campo.poligono.geojson),
+            }
+        })
+
+    except Exception as e:
+        print(f"Error en crear_campo_poligono: {str(e)}")
+        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def actualizar_campo_poligono(request, campo_id):
+    """
+    Actualiza el polígono (y opcionalmente el nombre) de un Campo existente,
+    a partir de una edición hecha en el mapa (Leaflet Draw - modo edición).
+    """
+    try:
+        campo = get_object_or_404(Campo, pk=campo_id)
+
+        poligono_geojson = request.POST.get('poligono_geojson')
+        nombre = request.POST.get('nombre', '').strip()
+
+        if not poligono_geojson:
+            return JsonResponse({'ok': False, 'error': 'Falta el polígono editado.'}, status=400)
+
+        try:
+            geom = GEOSGeometry(poligono_geojson)
+        except (GEOSException, ValueError, TypeError):
+            return JsonResponse({'ok': False, 'error': 'El polígono recibido no es válido.'}, status=400)
+
+        if geom.geom_type != 'Polygon':
+            return JsonResponse({'ok': False, 'error': 'La geometría debe ser un polígono.'}, status=400)
+
+        if geom.srid is None:
+            geom.srid = 4326
+
+        centroide = geom.centroid
+
+        distrito = request.POST.get('distrito', '').strip()
+        departamento = request.POST.get('departamento', '').strip()
+        area_hectareas = request.POST.get('area_hectareas')
+
+        campo.poligono = geom
+        campo.latitud = centroide.y
+        campo.longitud = centroide.x
+        if nombre:
+            campo.nombre = nombre
+        if distrito:
+            campo.distrito = distrito
+        if departamento:
+            campo.departamento = departamento
+        if area_hectareas:
+            campo.area_hectareas = area_hectareas
+        campo.save()
+
+        return JsonResponse({
+            'ok': True,
+            'campo': {
+                'id': campo.id,
+                'nombre': campo.nombre,
+                'distrito': campo.distrito or '',
+                'departamento': campo.departamento or '',
+                'poligono': json.loads(campo.poligono.geojson),
+            }
+        })
+
+    except Exception as e:
+        print(f"Error en actualizar_campo_poligono: {str(e)}")
+        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+    
     
 def get_imagenes_marcas(request):
     """Obtener imágenes predefinidas de marcas (para AJAX)"""
@@ -564,36 +683,32 @@ class EsEmpleadoOMas(UserPassesTestMixin):
 def lista_productores(request):
     """Lista todos los productores con filtros"""
     productores = Productor.objects.all()
-    
-    # Filtros - ELIMINAMOS DISTRITO
-    query = request.GET.get('q', '')
+
+    # Filtros — coinciden con los names del formulario en lista.html
+    nombre = request.GET.get('nombre', '')
+    dni = request.GET.get('dni', '')
     estado = request.GET.get('estado', '')
     localidad = request.GET.get('localidad', '')
-    departamento = request.GET.get('departamento', '')
-    
-    if query:
+
+    if nombre:
         productores = productores.filter(
-            Q(nombre__icontains=query) | 
-            Q(apellido__icontains=query) |
-            Q(dni__icontains=query) |
-            Q(campo__icontains=query)
+            Q(nombre__icontains=nombre) |
+            Q(apellido__icontains=nombre)
         )
-    
+
+    if dni:
+        productores = productores.filter(dni__icontains=dni)
+
     if estado:
         productores = productores.filter(estado=estado)
-    
+
     if localidad:
         productores = productores.filter(localidad__icontains=localidad)
-    
-    if departamento:
-        productores = productores.filter(departamento__icontains=departamento)
-    
+
     context = {
         'productores': productores,
-        'query': query,
-        'estado_filtro': estado,
-        'localidad_filtro': localidad,
-        'departamento_filtro': departamento,
+        'total_productores': productores.count(),
+        'estados': Productor.ESTADO_CHOICES,
     }
     return render(request, 'app_sigrams/productores/lista.html', context)
 
@@ -991,6 +1106,35 @@ class ListaMarcasView(ListView):
     template_name = 'app_sigrams/marcas/lista.html'
     context_object_name = 'marcas'
     paginate_by = 20
+
+    def get_queryset(self):
+        queryset = MarcaSenal.objects.select_related('productor').all()
+
+        query = self.request.GET.get('q', '')
+        estado = self.request.GET.get('estado', '')
+        tipo_tramite = self.request.GET.get('tipo_tramite', '')
+
+        if query:
+            queryset = queryset.filter(
+                Q(productor__nombre__icontains=query) |
+                Q(productor__apellido__icontains=query) |
+                Q(numero_orden__icontains=query)
+            )
+
+        if estado:
+            queryset = queryset.filter(estado=estado)
+
+        if tipo_tramite:
+            queryset = queryset.filter(tipo_tramite=tipo_tramite)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['query'] = self.request.GET.get('q', '')
+        context['estado_filtro'] = self.request.GET.get('estado', '')
+        context['tipo_tramite_filtro'] = self.request.GET.get('tipo_tramite', '')
+        return context
 
 class NuevaMarcaView(CreateView):
     model = MarcaSenal

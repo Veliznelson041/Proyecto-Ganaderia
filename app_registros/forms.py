@@ -125,7 +125,7 @@ class ProductorForm(forms.ModelForm):
     class Meta:
         model = Productor
         fields = [
-            'nombre', 'apellido', 'dni', 'cuit', 'calle', 'campo',
+            'nombre', 'apellido', 'dni', 'cuit', 'calle',
             'localidad', 'municipio', 'departamento', 'provincia',
             'telefono', 'email', 'latitud', 'longitud',
             'area_hectareas', 'estado', 'observaciones'
@@ -275,7 +275,7 @@ class MarcaSenalForm(forms.ModelForm):
     )
 
     fecha_inscripcion = forms.DateField(
-        widget=forms.DateInput(attrs={
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={
             'class': 'form-control',
             'type': 'date',
             'required': 'required',
@@ -285,7 +285,7 @@ class MarcaSenalForm(forms.ModelForm):
 
     fecha_vencimiento = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={
             'class': 'form-control',
             'type': 'date',
             'min': date.today().isoformat()
@@ -467,7 +467,7 @@ class SolicitudForm(forms.ModelForm):
 
     fecha_vencimiento = forms.DateTimeField(
         required=False,
-        widget=forms.DateTimeInput(attrs={
+        widget=forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={
             'class': 'form-control',
             'type': 'datetime-local'
         })
@@ -616,7 +616,7 @@ class SolicitudRevisionForm(forms.ModelForm):
                 'rows': 4,
                 'placeholder': 'Observaciones internas para el revisor...'
             }),
-            'fecha_vencimiento': forms.DateTimeInput(attrs={
+            'fecha_vencimiento': forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={
                 'class': 'form-control',
                 'type': 'datetime-local'
             }),

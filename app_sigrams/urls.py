@@ -9,6 +9,8 @@ from .views import (
     buscar_marca_por_nombre,
     get_marcas_por_productor,
     get_campos_por_productor,
+    crear_campo_poligono,
+    actualizar_campo_poligono,
     buscar_imagen_similar,
     verificar_imagen_ajax,
 )
@@ -57,6 +59,8 @@ urlpatterns = [
     # =========================
     path('ajax/marcas/<int:productor_id>/', get_marcas_por_productor, name='ajax_marcas'),
     path('ajax/campos/<int:productor_id>/', get_campos_por_productor, name='ajax_campos'),
+    path('ajax/campos/crear-poligono/', crear_campo_poligono, name='ajax_crear_campo_poligono'),
+    path('ajax/campos/<int:campo_id>/actualizar-poligono/', actualizar_campo_poligono, name='ajax_actualizar_campo_poligono'),
     path('ajax/imagenes-marcas/', views.get_imagenes_marcas, name='ajax_imagenes_marcas'),
     path('ajax/buscar-imagen-similar/', buscar_imagen_similar, name='ajax_buscar_imagen_similar'),
     path('ajax/verificar-imagen/', verificar_imagen_ajax, name='ajax_verificar_imagen'),

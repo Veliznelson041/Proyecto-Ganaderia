@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.gis.admin import GISModelAdmin
 from .models import Productor, Campo, TipoSenal, MarcaSenal, Solicitud, UserProfile, ChangeLog, ImagenMarcaPredefinida
 
 @admin.register(Productor)
@@ -9,10 +10,17 @@ class ProductorAdmin(admin.ModelAdmin):
     readonly_fields = ['fecha_registro']
 
 @admin.register(Campo)
-class CampoAdmin(admin.ModelAdmin):
+class CampoAdmin(GISModelAdmin):
     list_display = ['nombre', 'productor', 'distrito', 'departamento', 'area_hectareas']
     list_filter = ['distrito', 'departamento']
     search_fields = ['nombre', 'productor__nombre', 'productor__apellido']
+    gis_widget_kwargs = {
+        'attrs': {
+            'default_lon': -7322596,
+            'default_lat': -3346556,
+            'default_zoom': 8,
+        }
+    }
 
 @admin.register(TipoSenal)
 class TipoSenalAdmin(admin.ModelAdmin):

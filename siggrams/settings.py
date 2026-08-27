@@ -18,6 +18,12 @@ from dotenv import load_dotenv
 
 load_dotenv()  # carga variables de .env
 
+# --- GeoDjango: rutas de librerías (Windows) ---
+if os.name == 'nt':
+    os.environ['PATH'] = r'C:\Program Files\PostgreSQL\15\bin' + ';' + os.environ['PATH']
+    GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\15\bin\libgdal-34.dll'
+    GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\15\bin\libgeos_c.dll'
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'changeme')
@@ -48,6 +54,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
     'rest_framework',
     'app_registros',
     'app_sigrams',
@@ -90,7 +97,7 @@ WSGI_APPLICATION = 'siggrams.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': os.getenv('DATABASE_NAME', 'sigrams_db'),
         'USER': os.getenv('DATABASE_USER', 'postgres'),
         'PASSWORD': os.getenv('DATABASE_PASSWORD', 'Nelson24'),
@@ -139,6 +146,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type

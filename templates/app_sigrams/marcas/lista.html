@@ -31,9 +31,8 @@
             <div class="col-md-2">
                 <select name="tipo_tramite" class="form-control">
                     <option value="">Todos los trámites</option>
-                    <option value="NUEVA" {% if tipo_tramite_filtro == 'NUEVA' %}selected{% endif %}>Nueva</option>
-                    <option value="RENOVACION" {% if tipo_tramite_filtro == 'RENOVACION' %}selected{% endif %}>Renovación</option>
-                    <option value="TRANSFERENCIA" {% if tipo_tramite_filtro == 'TRANSFERENCIA' %}selected{% endif %}>Transferencia</option>
+                    <option value="REGISTRO_MARCA_SENAL" {% if tipo_tramite_filtro == 'REGISTRO_MARCA_SENAL' %}selected{% endif %}>Registro Marca y Señal</option>
+                    <option value="REGISTRO_SENALES" {% if tipo_tramite_filtro == 'REGISTRO_SENALES' %}selected{% endif %}>Registro Señales solas</option>
                 </select>
             </div>
             <div class="col-md-2">

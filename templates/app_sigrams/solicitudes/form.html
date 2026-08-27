@@ -169,54 +169,7 @@
                 </a>
             </div>
         </form>
-        <!-- SECCIÓN DE DEPURACIÓN (ELIMINAR EN PRODUCCIÓN) -->
-<div class="card mt-4 border-danger debug-info">
-    <div class="card-header bg-danger text-white">
-        <h6 class="mb-0">🔧 Depuración</h6>
-    </div>
-    <div class="card-body">
-        <p><strong>Productor seleccionado:</strong> <span id="debug-productor">Ninguno</span></p>
-        <p><strong>Tipo de trámite:</strong> <span id="debug-tramite">Ninguno</span></p>
-        <p><strong>Estado campo marca:</strong> <span id="debug-estado-campo">Desconocido</span></p>
-        <p><strong>URL AJAX marcas:</strong> <span id="debug-url">No calculada</span></p>
-        <button class="btn btn-sm btn-outline-danger" onclick="recargarMarcas()">
-            🔄 Forzar recarga de marcas
-        </button>
-    </div>
-</div>
-
-<script>
-// Funciones de depuración
-function recargarMarcas() {
-    const productorId = document.getElementById('id_productor').value;
-    if (productorId) {
-        cargarMarcasDelProductor(productorId);
-    } else {
-        alert('Primero seleccione un productor');
-    }
-}
-
-// Actualizar información de depuración
-setInterval(function() {
-    const productorSelect = document.getElementById('id_productor');
-    const tipoTramiteSelect = document.getElementById('id_tipo_tramite');
-    const marcaSenalSelect = document.getElementById('id_marca_senal');
-    
-    document.getElementById('debug-productor').textContent = productorSelect ? productorSelect.value : 'No encontrado';
-    document.getElementById('debug-tramite').textContent = tipoTramiteSelect ? tipoTramiteSelect.value : 'No encontrado';
-    
-    if (marcaSenalSelect) {
-        const estado = marcaSenalSelect.disabled ? 'DESACTIVADO' : 'ACTIVADO';
-        const opciones = marcaSenalSelect.options.length;
-        document.getElementById('debug-estado-campo').textContent = `${estado} (${opciones} opciones)`;
-    }
-    
-    // Mostrar URL que se usaría
-    if (productorSelect && productorSelect.value) {
-        document.getElementById('debug-url').textContent = `/ajax/marcas/${productorSelect.value}/`;
-    }
-}, 1000);
-</script>
+        
     </div>
 </div>
 
@@ -259,28 +212,36 @@ setInterval(function() {
     font-weight: 600;
 }
 
-/* Para depuración - quitar en producción */
-.debug-info {
-    font-size: 12px;
-    color: #666;
-    background-color: #f8f9fa;
-    padding: 5px;
-    border-radius: 4px;
-    margin-top: 5px;
-    display: none; /* Cambiar a block para ver depuración */
-}
+
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
     const productorSelect = document.getElementById('id_productor');
+
+    if (productorSelect) {
+        new Choices(productorSelect, {
+            searchEnabled: true,
+            searchPlaceholderValue: 'Buscar productor por nombre o DNI...',
+            itemSelectText: '',
+            shouldSort: false,
+            noResultsText: 'No se encontraron productores',
+        });
+    }
     const marcaSenalSelect = document.getElementById('id_marca_senal');
     const tipoTramiteSelect = document.getElementById('id_tipo_tramite');
     const marcaSenalHelp = document.getElementById('marca-senal-help');
     const form = document.querySelector('form');
 
-    const TIPOS_CON_MARCA = ['RENOVACION', 'TRANSFERENCIA', 'BAJA', 'MODIFICACION'];
+        const TIPOS_CON_MARCA = [
+        'RENOVACION',
+        'RENOVACION_TRANSFERENCIA',
+        'RENOVACION_MOD_SENALES',
+        'TRANSFERENCIA_MOD_SENAL',
+        'DUPLICADO',
+        'BAJA'
+    ];
 
     /* ===============================
        HABILITAR / DESHABILITAR MARCA
@@ -289,7 +250,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const tipo = tipoTramiteSelect?.value || '';
         const requiereMarca = TIPOS_CON_MARCA.includes(tipo);
 
-        console.log('DEBUG:', tipo, 'requiere marca:', requiereMarca);
 
         if (!marcaSenalSelect) return;
 

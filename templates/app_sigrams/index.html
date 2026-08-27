@@ -18,7 +18,7 @@
 
 <!-- Tarjetas de estadísticas principales -->
 <div class="row mb-4">
-    <div class="col-xl-3 col-md-6 mb-4">
+    <div class="col-xl-{% if user_profile.rol == 'admin' %}3{% else %}4{% endif %} col-md-6 mb-4">
         <div class="card border-start-catamarca border-start-3 shadow h-100">
             <div class="card-body">
                 <div class="row align-items-center">
@@ -44,7 +44,7 @@
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
+    <div class="col-xl-{% if user_profile.rol == 'admin' %}3{% else %}4{% endif %} col-md-6 mb-4">
         <div class="card border-start-success border-start-3 shadow h-100">
             <div class="card-body">
                 <div class="row align-items-center">
@@ -70,7 +70,7 @@
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
+    <div class="col-xl-{% if user_profile.rol == 'admin' %}3{% else %}4{% endif %} col-md-6 mb-4">
         <div class="card border-start-warning border-start-3 shadow h-100">
             <div class="card-body">
                 <div class="row align-items-center">
@@ -96,6 +96,7 @@
         </div>
     </div>
 
+    {% if user_profile.rol == 'admin' %}
     <div class="col-xl-3 col-md-6 mb-4">
         <div class="card border-start-info border-start-3 shadow h-100">
             <div class="card-body">
@@ -121,6 +122,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 
 <!-- Acciones rápidas y alertas -->
@@ -134,30 +136,32 @@
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="col-lg-{% if user_profile.rol == 'admin' %}3{% else %}4{% endif %} col-md-6 mb-3">
                         <a href="{% url 'nuevo_productor' %}" class="btn btn-catamarca w-100 h-100 py-3">
                             <i class="fas fa-user-plus fa-2x mb-2"></i><br>
                             Nuevo Productor
                         </a>
                     </div>
-                    <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="col-lg-{% if user_profile.rol == 'admin' %}3{% else %}4{% endif %} col-md-6 mb-3">
                         <a href="{% url 'nueva_marca' %}" class="btn btn-success w-100 h-100 py-3">
                             <i class="fas fa-tag fa-2x mb-2"></i><br>
                             Nueva Marca
                         </a>
                     </div>
-                    <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="col-lg-{% if user_profile.rol == 'admin' %}3{% else %}4{% endif %} col-md-6 mb-3">
                         <a href="{% url 'nueva_solicitud' %}" class="btn btn-warning w-100 h-100 py-3">
                             <i class="fas fa-file-alt fa-2x mb-2"></i><br>
                             Nueva Solicitud
                         </a>
                     </div>
+                    {% if user_profile.rol == 'admin' %}
                     <div class="col-lg-3 col-md-6 mb-3">
                         <a href="/admin/" target="_blank" class="btn btn-info w-100 h-100 py-3">
                             <i class="fas fa-cogs fa-2x mb-2"></i><br>
                             Panel Admin
                         </a>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

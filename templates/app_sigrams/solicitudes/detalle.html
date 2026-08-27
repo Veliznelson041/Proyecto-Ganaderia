@@ -24,8 +24,8 @@
             <ul class="dropdown-menu">
                 {% if solicitud.estado == 'PENDIENTE' %}
                 <li>
-                    <a class="dropdown-item" href="{% url 'cambiar_estado_solicitud' solicitud.pk 'revisar' %}" 
-                       onclick="return confirm('¿Está seguro de poner en revisión esta solicitud?')">
+                    <a class="dropdown-item confirmar-accion" href="{% url 'cambiar_estado_solicitud' solicitud.pk 'revisar' %}" 
+                       data-mensaje="¿Está seguro de poner en revisión esta solicitud?">
                         🔍 Poner en revisión
                     </a>
                 </li>
@@ -35,14 +35,14 @@
                 {% if user_profile.rol in roles_permitidos_documentos %}
                 {% if solicitud.estado == 'EN_REVISION' or solicitud.estado == 'OBSERVADO' %}
                 <li>
-                    <a class="dropdown-item" href="{% url 'cambiar_estado_solicitud' solicitud.pk 'aprobar' %}" 
-                       onclick="return confirm('¿Está seguro de aprobar esta solicitud?')">
+                    <a class="dropdown-item confirmar-accion" href="{% url 'cambiar_estado_solicitud' solicitud.pk 'aprobar' %}" 
+                       data-mensaje="¿Está seguro de aprobar esta solicitud?" data-icono="success">
                         ✅ Aprobar
                     </a>
                 </li>
                 <li>
-                    <a class="dropdown-item text-danger" href="{% url 'cambiar_estado_solicitud' solicitud.pk 'rechazar' %}" 
-                       onclick="return confirm('¿Está seguro de rechazar esta solicitud?')">
+                    <a class="dropdown-item text-danger confirmar-accion" href="{% url 'cambiar_estado_solicitud' solicitud.pk 'rechazar' %}" 
+                       data-mensaje="¿Está seguro de rechazar esta solicitud?" data-icono="warning">
                         ❌ Rechazar
                     </a>
                 </li>
@@ -51,8 +51,8 @@
                 
                 {% if solicitud.estado == 'EN_REVISION' %}
                 <li>
-                    <a class="dropdown-item text-warning" href="{% url 'cambiar_estado_solicitud' solicitud.pk 'observar' %}" 
-                       onclick="return confirm('¿Está seguro de marcar como observada esta solicitud?')">
+                    <a class="dropdown-item text-warning confirmar-accion" href="{% url 'cambiar_estado_solicitud' solicitud.pk 'observar' %}" 
+                       data-mensaje="¿Está seguro de marcar como observada esta solicitud?" data-icono="warning">
                         ⚠️ Marcar como observada
                     </a>
                 </li>
@@ -60,8 +60,8 @@
                 
                 {% if solicitud.estado in estados_para_devolver %}
                 <li>
-                    <a class="dropdown-item" href="{% url 'cambiar_estado_solicitud' solicitud.pk 'pendiente' %}" 
-                       onclick="return confirm('¿Está seguro de devolver a pendiente esta solicitud?')">
+                    <a class="dropdown-item confirmar-accion" href="{% url 'cambiar_estado_solicitud' solicitud.pk 'pendiente' %}" 
+                       data-mensaje="¿Está seguro de devolver a pendiente esta solicitud?">
                         ↩️ Devolver a pendiente
                     </a>
                 </li>
@@ -281,4 +281,30 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+document.querySelectorAll('.confirmar-accion').forEach(function(link) {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const url = this.getAttribute('href');
+        const mensaje = this.getAttribute('data-mensaje') || '¿Está seguro?';
+        const icono = this.getAttribute('data-icono') || 'question';
+
+        Swal.fire({
+            title: 'Confirmar acción',
+            text: mensaje,
+            icon: icono,
+            showCancelButton: true,
+            confirmButtonText: 'Sí, continuar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#0A2E5A',
+            cancelButtonColor: '#6c757d'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                window.location.href = url;
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

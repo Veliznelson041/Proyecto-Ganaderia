@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.gis.db import models as gis_models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.core.validators import MinValueValidator, FileExtensionValidator
@@ -77,6 +78,7 @@ class Campo(models.Model):
     departamento = models.CharField(max_length=150)
     latitud = models.DecimalField(max_digits=10, decimal_places=8, blank=True, null=True)
     longitud = models.DecimalField(max_digits=11, decimal_places=8, blank=True, null=True)
+    poligono = gis_models.PolygonField(srid=4326, blank=True, null=True)
     observaciones = models.TextField(blank=True)
     
     def __str__(self):
