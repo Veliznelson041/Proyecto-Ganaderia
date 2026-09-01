@@ -260,6 +260,27 @@ def get_marcas_por_productor(request, productor_id):
         return JsonResponse([{'error': str(e)}], safe=False, status=500)
 
 
+@login_required
+def detalle_marca_ajax(request, marca_id):
+    """Devuelve el detalle de una marca en JSON (para mostrarla como 'actual' en Solicitud)."""
+    try:
+        marca = MarcaSenal.objects.get(pk=marca_id)
+        return JsonResponse({
+            'ok': True,
+            'numero_orden': marca.numero_orden,
+            'descripcion_marca': marca.descripcion_marca,
+            'descripcion_senal': marca.descripcion_senal or '',
+            'tipo_marca': marca.tipo_marca or '',
+            'tipo_marca_display': marca.get_tipo_marca_display() if marca.tipo_marca else '',
+            'senales_orejeras': marca.senales_orejeras or {},
+            'estado': marca.get_estado_display(),
+            'imagen_url': marca.imagen_marca.url if marca.imagen_marca else None,
+        })
+    except MarcaSenal.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'Marca no encontrada'}, status=404)
+
+
+
 # app_sigrams/views.py - Actualizar función home
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
@@ -719,12 +740,23 @@ def detalle_productor(request, pk):
     marcas = productor.marcas_senales.all()
     solicitudes = productor.solicitudes.all()
     campos = productor.campos.all()
-    
+
+    # Historial: cambios sobre este productor, sus marcas, y solicitudes relacionadas
+    ids_marcas = list(marcas.values_list('id', flat=True))
+    ids_solicitudes = list(solicitudes.values_list('id', flat=True))
+
+    historial = ChangeLog.objects.filter(
+        Q(modelo='Productor', objeto_id=str(productor.id)) |
+        Q(modelo='MarcaSenal', objeto_id__in=[str(i) for i in ids_marcas]) |
+        Q(modelo='Solicitud', objeto_id__in=[str(i) for i in ids_solicitudes])
+    ).order_by('-timestamp')[:50]
+
     context = {
         'productor': productor,
         'marcas': marcas,
         'solicitudes': solicitudes,
         'campos': campos,
+        'historial': historial,
     }
     return render(request, 'app_sigrams/productores/detalle.html', context)
 
@@ -1159,7 +1191,12 @@ class NuevaMarcaView(CreateView):
             marca.senales_orejeras = {}
         marca.save()
         form.save_m2m()
+        messages.success(self.request, f'Marca #{marca.numero_orden} creada exitosamente.')
         return redirect(self.success_url)
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'Por favor, corrija los errores en el formulario.')
+        return super().form_invalid(form)
 
 class EditarMarcaView(UpdateView):
     model = MarcaSenal
@@ -1186,7 +1223,12 @@ class EditarMarcaView(UpdateView):
             marca.senales_orejeras = {}
         marca.save()
         form.save_m2m()
+        messages.success(self.request, f'Marca #{marca.numero_orden} actualizada exitosamente.')
         return redirect(self.success_url)
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'Por favor, corrija los errores en el formulario.')
+        return super().form_invalid(form)
 
 class DetalleMarcaView(DetailView):
     model = MarcaSenal
@@ -1366,8 +1408,17 @@ def nueva_solicitud(request):
     if request.method == 'POST':
         form = SolicitudForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
-            solicitud = form.save()
-            
+            solicitud = form.save(commit=False)
+
+            senales_json = request.POST.get('senales_orejeras_nuevas_json', '')
+            if senales_json:
+                try:
+                    solicitud.senales_orejeras_nuevas = json.loads(senales_json)
+                except Exception:
+                    solicitud.senales_orejeras_nuevas = None
+
+            solicitud.save()
+
             # Crear registro en el log de cambios
             ChangeLog.objects.create(
                 user=request.user,
@@ -1417,8 +1468,17 @@ def editar_solicitud(request, pk):
     if request.method == 'POST':
         form = SolicitudForm(request.POST, request.FILES, instance=solicitud, user=request.user)
         if form.is_valid():
-            solicitud = form.save()
-            
+            solicitud = form.save(commit=False)
+
+            senales_json = request.POST.get('senales_orejeras_nuevas_json', '')
+            if senales_json:
+                try:
+                    solicitud.senales_orejeras_nuevas = json.loads(senales_json)
+                except Exception:
+                    solicitud.senales_orejeras_nuevas = None
+
+            solicitud.save()
+
             ChangeLog.objects.create(
                 user=request.user,
                 modelo='Solicitud',
@@ -1482,6 +1542,47 @@ def cambiar_estado_solicitud(request, pk, accion):
         solicitud.aprobador = request.user
         solicitud.fecha_resolucion = timezone.now()
         mensaje = f'Solicitud #{solicitud.id} aprobada.'
+
+        # Si es una solicitud de modificación de señales/marca, aplicar los
+        # cambios propuestos a la MarcaSenal real y dejar registro del antes/después.
+        TIPOS_MODIFICACION = ['RENOVACION_MOD_SENALES', 'TRANSFERENCIA_MOD_SENAL']
+        if solicitud.tipo_tramite in TIPOS_MODIFICACION and solicitud.marca_senal:
+            marca = solicitud.marca_senal
+            snapshot_anterior = {
+                'descripcion_marca': marca.descripcion_marca,
+                'descripcion_senal': marca.descripcion_senal,
+                'tipo_marca': marca.tipo_marca,
+                'senales_orejeras': marca.senales_orejeras,
+            }
+
+            if solicitud.descripcion_marca_nueva:
+                marca.descripcion_marca = solicitud.descripcion_marca_nueva
+            if solicitud.descripcion_senal_nueva:
+                marca.descripcion_senal = solicitud.descripcion_senal_nueva
+            if solicitud.tipo_marca_nueva:
+                marca.tipo_marca = solicitud.tipo_marca_nueva
+            if solicitud.senales_orejeras_nuevas:
+                marca.senales_orejeras = solicitud.senales_orejeras_nuevas
+
+            marca.save()
+
+            ChangeLog.objects.create(
+                user=request.user,
+                modelo='MarcaSenal',
+                objeto_id=marca.id,
+                accion='MODIFICACION_POR_SOLICITUD',
+                snapshot={
+                    'solicitud_id': solicitud.id,
+                    'anterior': snapshot_anterior,
+                    'nuevo': {
+                        'descripcion_marca': marca.descripcion_marca,
+                        'descripcion_senal': marca.descripcion_senal,
+                        'tipo_marca': marca.tipo_marca,
+                        'senales_orejeras': marca.senales_orejeras,
+                    }
+                }
+            )
+            mensaje = f'Solicitud #{solicitud.id} aprobada. Marca #{marca.numero_orden} actualizada según la modificación propuesta.'
 
         # Notificación
         if solicitud.solicitante:
@@ -2399,16 +2500,18 @@ def verificar_imagen_ajax(request):
 def buscar_marca_por_nombre(request):
     """
     GET /ajax/buscar-marca-nombre/?q=texto
-    Busca marcas e imágenes predefinidas por nombre o descripción.
+    Busca marcas por nombre de productor, descripción de marca o descripción de señal.
     """
     q = request.GET.get('q', '').strip()
     if len(q) < 2:
         return JsonResponse({'ok': False, 'error': 'Ingresá al menos 2 caracteres.'})
 
-    # Buscar en MarcaSenal por descripcion_marca
     marcas_qs = MarcaSenal.objects.filter(
         Q(descripcion_marca__icontains=q) |
-        Q(imagenes_predefinidas__nombre__icontains=q)
+        Q(descripcion_senal__icontains=q) |
+        Q(productor__nombre__icontains=q) |
+        Q(productor__apellido__icontains=q) |
+        Q(senales_orejeras__icontains=q)
     ).select_related('productor').distinct()[:20]
 
     marcas = []
@@ -2417,29 +2520,27 @@ def buscar_marca_por_nombre(request):
             url = reverse('detalle_marca', kwargs={'pk': m.pk})
         except Exception:
             url = f"/marcas/{m.pk}/"
+
+        orejeras = m.senales_orejeras or {}
+        orejeras_txt = []
+        if orejeras.get('izquierda'):
+            orejeras_txt.append('Izq: ' + ', '.join(orejeras['izquierda']))
+        if orejeras.get('derecha'):
+            orejeras_txt.append('Der: ' + ', '.join(orejeras['derecha']))
+
         marcas.append({
             'id': m.pk,
             'numero_orden': m.numero_orden,
             'productor': str(m.productor),
             'productor_id': m.productor.pk,
             'descripcion': m.descripcion_marca[:100],
+            'descripcion_senal': (m.descripcion_senal or '')[:100],
+            'senales_orejeras_texto': ' | '.join(orejeras_txt),
             'url_detalle': url,
             'imagen_url': m.imagen_marca.url if m.imagen_marca else None,
         })
 
-    # Buscar en ImagenMarcaPredefinida por nombre
-    predefinidas_qs = ImagenMarcaPredefinida.objects.filter(
-        nombre__icontains=q, activa=True
-    )[:10]
-
-    predefinidas = [{
-        'id': p.pk,
-        'nombre': p.nombre,
-        'tipo_marca': p.get_tipo_marca_display(),
-        'imagen_url': p.imagen.url if p.imagen else None,
-    } for p in predefinidas_qs]
-
-    total = len(marcas) + len(predefinidas)
-    return JsonResponse({'ok': True, 'query': q, 'marcas': marcas, 'predefinidas': predefinidas, 'total': total})
+    total = len(marcas)
+    return JsonResponse({'ok': True, 'query': q, 'marcas': marcas, 'total': total})
 
 

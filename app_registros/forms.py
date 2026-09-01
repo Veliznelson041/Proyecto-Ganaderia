@@ -496,7 +496,10 @@ class SolicitudForm(forms.ModelForm):
             'documento_adjunto',
             'imagen_adicional_1',
             'imagen_adicional_2',
-            'fecha_vencimiento'
+            'fecha_vencimiento',
+            'descripcion_marca_nueva',
+            'descripcion_senal_nueva',
+            'tipo_marca_nueva',
         ]
         widgets = {
             'productor': forms.Select(attrs={
@@ -520,6 +523,19 @@ class SolicitudForm(forms.ModelForm):
             'imagen_adicional_2': forms.FileInput(attrs={
                 'class': 'form-control',
                 'accept': 'image/*'
+            }),
+            'descripcion_marca_nueva': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Nueva descripción de la marca propuesta...'
+            }),
+            'descripcion_senal_nueva': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Nueva descripción de la señal propuesta...'
+            }),
+            'tipo_marca_nueva': forms.Select(attrs={
+                'class': 'form-control'
             }),
         }
 
@@ -568,6 +584,15 @@ class SolicitudForm(forms.ModelForm):
                 self.add_error(
                     'marca_senal',
                     'Para este tipo de trámite debe seleccionar una marca/señal.'
+                )
+
+        # Validación de datos de modificación propuesta
+        if tipo_tramite in ['RENOVACION_MOD_SENALES', 'TRANSFERENCIA_MOD_SENAL']:
+            descripcion_marca_nueva = cleaned_data.get('descripcion_marca_nueva', '').strip()
+            if not descripcion_marca_nueva:
+                self.add_error(
+                    'descripcion_marca_nueva',
+                    'Debe describir la nueva marca/señal propuesta.'
                 )
 
         # Validar fecha futura

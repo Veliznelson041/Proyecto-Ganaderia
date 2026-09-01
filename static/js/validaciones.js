@@ -102,10 +102,16 @@ function validarEmail(input) {
 
 function capitalizarPrimeraLetra(input) {
     if (input.value.length > 0) {
-        // Capitalizar la primera letra de cada palabra
-        input.value = input.value.toLowerCase().replace(/\b\w/g, function(l) {
-            return l.toUpperCase();
-        });
+        // Capitalizar la primera letra de cada palabra, separando por espacios
+        // (evita el bug de \b\w con letras acentuadas: á, é, í, ó, ú)
+        input.value = input.value
+            .toLowerCase()
+            .split(' ')
+            .map(function(palabra) {
+                if (palabra.length === 0) return palabra;
+                return palabra.charAt(0).toUpperCase() + palabra.slice(1);
+            })
+            .join(' ');
     }
 }
 

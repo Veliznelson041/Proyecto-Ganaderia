@@ -64,6 +64,8 @@ urlpatterns = [
     path('ajax/imagenes-marcas/', views.get_imagenes_marcas, name='ajax_imagenes_marcas'),
     path('ajax/buscar-imagen-similar/', buscar_imagen_similar, name='ajax_buscar_imagen_similar'),
     path('ajax/verificar-imagen/', verificar_imagen_ajax, name='ajax_verificar_imagen'),
+    path('ajax/marca-detalle/<int:marca_id>/', views.detalle_marca_ajax, name='ajax_detalle_marca'),
+
     # =========================
     # BÚSQUEDA POR IMAGEN (página dedicada — escenario policial)
     # =========================

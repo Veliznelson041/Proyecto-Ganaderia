@@ -60,6 +60,108 @@
                         </div>
                     </div>
 
+                    <!-- Marca/Señal ACTUAL (solo lectura, cuando se elige una marca) -->
+                    <div id="panel-marca-actual" class="card border-secondary mb-3" style="display:none;">
+                        <div class="card-header py-2 bg-secondary text-white">
+                            <h6 class="mb-0">📋 Marca/Señal actual (referencia)</h6>
+                        </div>
+                        <div class="card-body p-3 small">
+                            <div class="row">
+                                <div class="col-md-3 mb-2" id="actual-imagen-wrap" style="display:none;">
+                                    <img id="actual-imagen" src="" class="img-fluid rounded border" alt="Imagen de la marca">
+                                </div>
+                                <div class="col">
+                                    <p class="mb-1"><strong>Descripción de marca:</strong> <span id="actual-desc-marca"></span></p>
+                                    <p class="mb-1"><strong>Descripción de señal:</strong> <span id="actual-desc-senal"></span></p>
+                                    <p class="mb-0"><strong>Tipo de marca:</strong> <span id="actual-tipo-marca"></span></p>
+                                </div>
+                            </div>
+                            <div class="bg-light rounded-3 border mt-3" id="actual-orejas-wrap" style="display:none;">
+                                <svg id="svg-orejas-actual" viewBox="0 0 800 275" style="width:100%;display:block;max-width:400px;margin:0 auto;">
+                                    <g transform="translate(800,0) scale(-1,1)">
+                                        <path d="M 468,128 C 532,113 612,118 659,134 Q 681,150 659,166 C 612,182 532,187 468,172 Z" fill="#D4A76A" stroke="#8B6914" stroke-width="2"/>
+                                        <g id="actual-marcas-izq"></g>
+                                    </g>
+                                    <text x="192" y="107" text-anchor="middle" font-size="12" fill="#1D4ED8" font-weight="700">IZQ</text>
+                                    <path d="M 468,128 C 532,113 612,118 659,134 Q 681,150 659,166 C 612,182 532,187 468,172 Z" fill="#D4A76A" stroke="#8B6914" stroke-width="2"/>
+                                    <g id="actual-marcas-der"></g>
+                                    <text x="608" y="107" text-anchor="middle" font-size="12" fill="#B91C1C" font-weight="700">DER</text>
+                                    <ellipse cx="468" cy="150" rx="22" ry="24" fill="#D4A76A" stroke="#8B6914" stroke-width="1.5"/>
+                                    <ellipse cx="332" cy="150" rx="22" ry="24" fill="#D4A76A" stroke="#8B6914" stroke-width="1.5"/>
+                                    <ellipse cx="400" cy="182" rx="73" ry="85" fill="#D4A76A" stroke="#8B6914" stroke-width="2"/>
+                                    <ellipse cx="400" cy="112" rx="41" ry="31" fill="#C8996A" stroke="#8B6914" stroke-width="1.5"/>
+                                    <ellipse cx="388" cy="109" rx="8" ry="6" fill="#5C2D0A"/>
+                                    <ellipse cx="412" cy="109" rx="8" ry="6" fill="#5C2D0A"/>
+                                    <ellipse cx="373" cy="167" rx="12" ry="9" fill="#2C1A0E"/>
+                                    <ellipse cx="427" cy="167" rx="12" ry="9" fill="#2C1A0E"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modificación PROPUESTA (editable, solo para RENOVACION_MOD_SENALES / TRANSFERENCIA_MOD_SENAL) -->
+                    <div id="panel-modificacion-propuesta" class="card border-warning mb-3" style="display:none;">
+                        <div class="card-header py-2 bg-warning">
+                            <h6 class="mb-0">✏️ Modificación propuesta</h6>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="mb-3">
+                                <label for="{{ form.descripcion_marca_nueva.id_for_label }}" class="form-label">Nueva descripción de marca *</label>
+                                {{ form.descripcion_marca_nueva }}
+                                {% if form.descripcion_marca_nueva.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.descripcion_marca_nueva.errors %}
+                                    <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                <label for="{{ form.descripcion_senal_nueva.id_for_label }}" class="form-label">Nueva descripción de señal</label>
+                                {{ form.descripcion_senal_nueva }}
+                            </div>
+                            <div class="mb-3">
+                                <label for="{{ form.tipo_marca_nueva.id_for_label }}" class="form-label">Nuevo tipo de marca</label>
+                                {{ form.tipo_marca_nueva }}
+                            </div>
+
+                            <label class="form-label">Nuevas señales orejeras propuestas</label>
+                            <div class="bg-light rounded-3 border mb-2">
+                                <svg id="svg-orejas-propuesta" viewBox="0 0 800 275" style="width:100%;display:block;max-width:400px;margin:0 auto;">
+                                    <g transform="translate(800,0) scale(-1,1)">
+                                        <path d="M 468,128 C 532,113 612,118 659,134 Q 681,150 659,166 C 612,182 532,187 468,172 Z" fill="#D4A76A" stroke="#8B6914" stroke-width="2"/>
+                                        <g id="propuesta-marcas-izq"></g>
+                                    </g>
+                                    <text x="192" y="107" text-anchor="middle" font-size="12" fill="#1D4ED8" font-weight="700">IZQ</text>
+                                    <path d="M 468,128 C 532,113 612,118 659,134 Q 681,150 659,166 C 612,182 532,187 468,172 Z" fill="#D4A76A" stroke="#8B6914" stroke-width="2"/>
+                                    <g id="propuesta-marcas-der"></g>
+                                    <text x="608" y="107" text-anchor="middle" font-size="12" fill="#B91C1C" font-weight="700">DER</text>
+                                    <ellipse cx="468" cy="150" rx="22" ry="24" fill="#D4A76A" stroke="#8B6914" stroke-width="1.5"/>
+                                    <ellipse cx="332" cy="150" rx="22" ry="24" fill="#D4A76A" stroke="#8B6914" stroke-width="1.5"/>
+                                    <ellipse cx="400" cy="182" rx="73" ry="85" fill="#D4A76A" stroke="#8B6914" stroke-width="2"/>
+                                    <ellipse cx="400" cy="112" rx="41" ry="31" fill="#C8996A" stroke="#8B6914" stroke-width="1.5"/>
+                                    <ellipse cx="388" cy="109" rx="8" ry="6" fill="#5C2D0A"/>
+                                    <ellipse cx="412" cy="109" rx="8" ry="6" fill="#5C2D0A"/>
+                                    <ellipse cx="373" cy="167" rx="12" ry="9" fill="#2C1A0E"/>
+                                    <ellipse cx="427" cy="167" rx="12" ry="9" fill="#2C1A0E"/>
+                                </svg>
+                            </div>
+                            <div class="table-responsive" style="max-height:250px;overflow-y:auto;">
+                                <table class="table table-sm table-hover mb-0" style="font-size:0.8rem;">
+                                    <thead style="position:sticky;top:0;background:#fff3cd;">
+                                        <tr>
+                                            <th class="ps-2">Señal</th>
+                                            <th class="text-center" style="color:#1D4ED8;width:100px;">Izquierda</th>
+                                            <th class="text-center" style="color:#B91C1C;width:100px;">Derecha</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-senales-propuesta"></tbody>
+                                </table>
+                            </div>
+                            <input type="hidden" id="senales-json-propuesta" value="{}">
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <label for="{{ form.prioridad.id_for_label }}" class="form-label">Prioridad</label>
                         {{ form.prioridad }}
@@ -243,6 +345,167 @@ document.addEventListener('DOMContentLoaded', function () {
         'BAJA'
     ];
 
+    const SHAPES_OREJAS = {
+        "Trébol":'<circle cx="663" cy="141" r="9" %F%/><circle cx="675" cy="154" r="9" %F%/><circle cx="651" cy="154" r="9" %F%/>',
+        "Cuadrado en la Punta":'<rect x="648" y="132" width="35" height="33" %F%/>',
+        "Cuadrado de Abajo":'<rect x="539" y="167" width="32" height="25" %F%/>',
+        "Cuadrado de Arriba":'<rect x="539" y="107" width="32" height="25" %F%/>',
+        "Anzuelo de Abajo":'<path d="M574,174 C574,195 553,199 546,183 C539,167 548,155 561,155" %S%/>',
+        "Anzuelo de Arriba":'<path d="M574,126 C574,105 553,101 546,117 C539,133 548,145 561,145" %S%/>',
+        "Zarcillo de Abajo":'<path d="M614,163 L614,183 Q607,191 600,183 L600,163" %F%/>',
+        "Zarcillo de Arriba":'<path d="M614,137 L614,117 Q607,109 600,117 L600,137" %F%/>',
+        "Raja en la Punta":'<rect x="640" y="147" width="43" height="6" rx="3" %F%/>',
+        "Tajo de Abajo":'<path d="M535,174 L562,174 L554,158 Z" %F%/>',
+        "Tajo de Arriba":'<path d="M535,126 L562,126 L554,142 Z" %F%/>',
+        "Ojo de Llave":'<circle cx="561" cy="141" r="12" %F%/><rect x="556" y="150" width="10" height="19" %F%/>',
+        "Agujero en el Centro":'<circle cx="561" cy="150" r="14" %F%/>',
+        "Hoja de Higuera":'<path d="M682,150 C669,130 646,128 652,150 C646,172 669,170 682,150 M658,128 C655,116 641,118 647,128 M658,172 C655,184 641,182 647,172" %F% stroke-width="1.5"/>',
+        "Punta de Lanza":'<path d="M645,129 L683,150 L645,171 L658,150 Z" %F%/>',
+        "Horqueta en la Punta":'<path d="M647,129 C664,138 683,148 664,159 C645,170 644,170 644,170" %S% stroke-width="4.5"/>',
+        "Horqueta de Abajo":'<path d="M537,174 Q558,199 579,174" %S%/>',
+        "Horqueta de Arriba":'<path d="M537,126 Q558,101 579,126" %S%/>',
+        "Sacado de Abajo":'<path d="M529,174 Q560,210 591,174 Z" %F%/>',
+        "Sacado de Arriba":'<path d="M529,126 Q560,90 591,126 Z" %F%/>',
+        "Muesca de Abajo":'<path d="M470,174 L484,160 L498,174 Z" %F%/>',
+        "Muesca de Arriba":'<path d="M470,126 L484,140 L498,126 Z" %F%/>'
+    };
+
+    function shapeOreja(nombre, color) {
+        const raw = SHAPES_OREJAS[nombre];
+        if (!raw) return '';
+        const f = `fill="${color}" stroke="${color}" stroke-width="2" opacity="0.88" stroke-linejoin="round"`;
+        const s = `fill="none" stroke="${color}" stroke-width="5.5" opacity="0.88" stroke-linecap="round"`;
+        return raw.replace(/%F%/g, f).replace(/%S%/g, s);
+    }
+
+    function dibujarOrejasSoloLectura(senales, prefijoIds) {
+        const gi = document.getElementById(prefijoIds + '-marcas-izq');
+        const gd = document.getElementById(prefijoIds + '-marcas-der');
+        const wrap = document.getElementById(prefijoIds === 'actual' ? 'actual-orejas-wrap' : prefijoIds + '-orejas-wrap');
+        if (!gi || !gd) return;
+
+        gi.innerHTML = '';
+        gd.innerHTML = '';
+        let hayAlgo = false;
+
+        (senales.izquierda || []).forEach(function(n) {
+            gi.innerHTML += shapeOreja(n, '#1D4ED8');
+            hayAlgo = true;
+        });
+        (senales.derecha || []).forEach(function(n) {
+            gd.innerHTML += shapeOreja(n, '#B91C1C');
+            hayAlgo = true;
+        });
+
+        if (wrap) wrap.style.display = hayAlgo ? 'block' : 'none';
+    }
+    
+    const NOMBRES_SENALES = Object.keys(SHAPES_OREJAS);
+    const cntPropuesta = {};
+    NOMBRES_SENALES.forEach(function(n) { cntPropuesta[n] = { i: 0, d: 0 }; });
+
+    function renderPropuesta() {
+        const gi = document.getElementById('propuesta-marcas-izq');
+        const gd = document.getElementById('propuesta-marcas-der');
+        if (gi) gi.innerHTML = '';
+        if (gd) gd.innerHTML = '';
+
+        NOMBRES_SENALES.forEach(function(n) {
+            if (cntPropuesta[n].i > 0 && gi) gi.innerHTML += shapeOreja(n, '#1D4ED8');
+            if (cntPropuesta[n].d > 0 && gd) gd.innerHTML += shapeOreja(n, '#B91C1C');
+
+            ['i', 'd'].forEach(function(lado) {
+                const span = document.getElementById('cp-' + n + '-' + lado);
+                if (span) span.textContent = cntPropuesta[n][lado];
+            });
+        });
+
+        const out = {};
+        NOMBRES_SENALES.forEach(function(n) {
+            if (cntPropuesta[n].i > 0) {
+                out.izquierda = out.izquierda || [];
+                for (let j = 0; j < cntPropuesta[n].i; j++) out.izquierda.push(n);
+            }
+            if (cntPropuesta[n].d > 0) {
+                out.derecha = out.derecha || [];
+                for (let j = 0; j < cntPropuesta[n].d; j++) out.derecha.push(n);
+            }
+        });
+        document.getElementById('senales-json-propuesta').value = JSON.stringify(out);
+    }
+
+    function construirTablaPropuesta() {
+        const tb = document.getElementById('tbody-senales-propuesta');
+        if (!tb) return;
+        NOMBRES_SENALES.forEach(function(n) {
+            const tr = document.createElement('tr');
+            function celda(lado, color) {
+                return `<td class="text-center align-middle">
+                    <div class="d-inline-flex align-items-center gap-1">
+                        <button type="button" onclick="window.__adjPropuesta('${n}','${lado}',-1)"
+                            style="width:20px;height:20px;border:1px solid ${color};border-radius:4px;background:transparent;color:${color};font-size:13px;line-height:1;padding:0;cursor:pointer;">−</button>
+                        <span id="cp-${n}-${lado}" style="min-width:14px;text-align:center;font-size:11px;color:${color};">0</span>
+                        <button type="button" onclick="window.__adjPropuesta('${n}','${lado}',1)"
+                            style="width:20px;height:20px;border:1px solid ${color};border-radius:4px;background:transparent;color:${color};font-size:13px;line-height:1;padding:0;cursor:pointer;">+</button>
+                    </div>
+                </td>`;
+            }
+            tr.innerHTML = `<td class="ps-2 align-middle">${n}</td>${celda('i', '#1D4ED8')}${celda('d', '#B91C1C')}`;
+            tb.appendChild(tr);
+        });
+        renderPropuesta();
+    }
+
+    window.__adjPropuesta = function(nombre, lado, delta) {
+        cntPropuesta[nombre][lado] = Math.max(0, cntPropuesta[nombre][lado] + delta);
+        renderPropuesta();
+    };
+
+    if (document.getElementById('tbody-senales-propuesta')) {
+        construirTablaPropuesta();
+    }
+
+    const TIPOS_CON_MODIFICACION = ['RENOVACION_MOD_SENALES', 'TRANSFERENCIA_MOD_SENAL'];
+    const panelMarcaActual = document.getElementById('panel-marca-actual');
+    const panelModificacion = document.getElementById('panel-modificacion-propuesta');
+
+    function actualizarPanelModificacion() {
+        const tipo = tipoTramiteSelect?.value || '';
+        panelModificacion.style.display = TIPOS_CON_MODIFICACION.includes(tipo) ? 'block' : 'none';
+    }
+
+    function cargarMarcaActual(marcaId) {
+        if (!marcaId) {
+            panelMarcaActual.style.display = 'none';
+            return;
+        }
+        fetch(`/ajax/marca-detalle/${marcaId}/`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.ok) {
+                    panelMarcaActual.style.display = 'none';
+                    return;
+                }
+                document.getElementById('actual-desc-marca').textContent = data.descripcion_marca || '—';
+                document.getElementById('actual-desc-senal').textContent = data.descripcion_senal || '—';
+                document.getElementById('actual-tipo-marca').textContent = data.tipo_marca_display || '—';
+
+                const imgWrap = document.getElementById('actual-imagen-wrap');
+                const img = document.getElementById('actual-imagen');
+                if (data.imagen_url) {
+                    img.src = data.imagen_url;
+                    imgWrap.style.display = 'block';
+                } else {
+                    imgWrap.style.display = 'none';
+                }
+
+                dibujarOrejasSoloLectura(data.senales_orejeras || {}, 'actual');
+
+                panelMarcaActual.style.display = 'block';
+            })
+            .catch(() => { panelMarcaActual.style.display = 'none'; });
+    }
+
     /* ===============================
        HABILITAR / DESHABILITAR MARCA
     =============================== */
@@ -341,11 +604,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 marcaSenalSelect.disabled = false;
 
-                // Auto-seleccionar si hay una sola válida
+               // Auto-seleccionar si hay una sola válida
                 const validas = [...marcaSenalSelect.options]
                     .filter(o => o.value && !o.disabled);
                 if (validas.length === 1) {
                     marcaSenalSelect.value = validas[0].value;
+                    marcaSenalSelect.dispatchEvent(new Event('change'));
                 }
             })
             .catch(err => {
@@ -364,7 +628,10 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ===============================
        EVENTOS
     =============================== */
-    tipoTramiteSelect?.addEventListener('change', actualizarEstadoMarca);
+    tipoTramiteSelect?.addEventListener('change', function() {
+        actualizarEstadoMarca();
+        actualizarPanelModificacion();
+    });
 
     productorSelect?.addEventListener('change', function () {
         if (!marcaSenalSelect.disabled && this.value) {
@@ -372,7 +639,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    marcaSenalSelect?.addEventListener('change', function() {
+        cargarMarcaActual(this.value);
+    });
+
     actualizarEstadoMarca(); // inicial
+    actualizarPanelModificacion(); // inicial
 
     /* ===============================
        VALIDACIÓN FINAL
@@ -383,6 +655,20 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault();
             alert('❌ Debe seleccionar una marca para este tipo de trámite');
             marcaSenalSelect.focus();
+            return;
+        }
+
+        // Adjuntar el JSON de señales orejeras propuestas como campo hidden con el name correcto
+        if (TIPOS_CON_MODIFICACION.includes(tipo)) {
+            const jsonVal = document.getElementById('senales-json-propuesta').value;
+            let hiddenInput = document.querySelector('input[name="senales_orejeras_nuevas_json"]');
+            if (!hiddenInput) {
+                hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'senales_orejeras_nuevas_json';
+                form.appendChild(hiddenInput);
+            }
+            hiddenInput.value = jsonVal;
         }
     });
 });

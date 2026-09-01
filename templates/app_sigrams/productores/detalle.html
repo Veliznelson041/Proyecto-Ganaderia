@@ -297,13 +297,71 @@ document.addEventListener('DOMContentLoaded', function() {
                         </tbody>
                     </table>
                 </div>
-                {% else %}
+                                {% else %}
                 <p class="text-muted text-center">No hay solicitudes para este productor.</p>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+<!-- Sección de Historial -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">🕐 Historial de Cambios</h5>
+            </div>
+            <div class="card-body">
+                {% if historial %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Modelo</th>
+                                <th>Acción</th>
+                                <th>Usuario</th>
+                                <th>Detalle</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in historial %}
+                            <tr>
+                                <td>{{ item.timestamp|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ item.modelo }} #{{ item.objeto_id }}</span>
+                                </td>
+                                <td>{{ item.accion }}</td>
+                                <td>{{ item.user.username|default:"Sistema" }}</td>
+                                <td>
+                                    {% if item.accion == 'MODIFICACION_POR_SOLICITUD' %}
+                                        <small class="text-muted">
+                                            Marca actualizada desde Solicitud #{{ item.snapshot.solicitud_id }}<br>
+                                            {% if item.snapshot.anterior.descripcion_marca != item.snapshot.nuevo.descripcion_marca %}
+                                                <strong>Descripción marca:</strong>
+                                                <span class="text-danger">{{ item.snapshot.anterior.descripcion_marca|truncatechars:40 }}</span>
+                                                →
+                                                <span class="text-success">{{ item.snapshot.nuevo.descripcion_marca|truncatechars:40 }}</span>
+                                            {% endif %}
+                                        </small>
+                                    {% else %}
+                                        <small class="text-muted">{{ item.snapshot.estado|default:"" }}</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center mb-0">No hay cambios registrados todavía.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 {% if campos %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {

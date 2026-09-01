@@ -542,6 +542,24 @@ class Solicitud(models.Model):
         related_name='solicitudes'
     )
 
+        # ----------------------------------------
+    # MODIFICACIÓN PROPUESTA (solo para RENOVACION_MOD_SENALES / TRANSFERENCIA_MOD_SENAL)
+    # ----------------------------------------
+    descripcion_marca_nueva = models.TextField(blank=True, verbose_name="Nueva descripción de marca")
+    descripcion_senal_nueva = models.TextField(blank=True, verbose_name="Nueva descripción de señal")
+    tipo_marca_nueva = models.CharField(
+        max_length=20,
+        choices=[
+            ('DIBUJO', 'Dibujo'),
+            ('INICIALES', 'Iniciales'),
+            ('NUMEROS', 'Números'),
+            ('LETRA_NUMERO', 'Letra y Número'),
+        ],
+        blank=True,
+        verbose_name='Nuevo tipo de marca',
+    )
+    senales_orejeras_nuevas = models.JSONField(blank=True, null=True, verbose_name='Nuevas señales orejeras')
+
     solicitante = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
